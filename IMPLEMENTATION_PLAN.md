@@ -843,6 +843,7 @@ document is a wish list, and a section in it is not a request.
 | 58 | The lockout is 10 wrong IDs in total, and a correct ID in between does not reset the count |
 | 59 | A מנכ"ל can reset every gift selection that was not handed over; the units return to their stock |
 | 60 | Above the gifts: "שים לב שבחירת המתנה תקפה רק ליום חלוקתה." |
+| 61 | The student login page has no link to the staff login page; staff open `/staff/login` directly |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

@@ -18,8 +18,7 @@ export const T = {
   devStudent: "כניסה כסטודנט, לפי מספר זהות",
   devStaff: "כניסה כצוות, לפי כתובת דוא\"ל",
   devGo: "היכנס",
-  /** Request 24: the student login page links to the staff login page, and back. */
-  staffLink: "עובד באגודה? היכנס כאן",
+  /** Request 24: the staff login page links to the student login page (request 61: not the reverse). */
   studentLink: "סטודנט? היכנס כאן",
   staffLoginTitle: "כניסת צוות",
   staffSignIn: "התחבר עם חשבון האוניברסיטה או האגודה",
@@ -476,7 +475,6 @@ ${notInList ? postLink(null) : ""}
 ${error}
 ${register}
 <a class="button" href="/auth/google">${T.signIn}</a>
-<p><a href="/staff/login">${T.staffLink}</a></p>
 ${dev}`, false, true);
 }
 

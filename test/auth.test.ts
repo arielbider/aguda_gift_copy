@@ -103,12 +103,12 @@ describe("login flow", () => {
     await pool.query("INSERT INTO staff (email, role, campus) VALUES ('boss@aguda.org.il', 'manager', 'הר הצופים')");
   });
 
-  test("the student login page is the default, and links to the staff login page", async () => {
+  test("the student login page is the default, with no link to the staff login page (request 61)", async () => {
     const { app: a } = await app({});
     const res = await a.inject("/");
     assert.equal(res.statusCode, 200);
     assert.match(res.body, /href="\/auth\/google"/);
-    assert.match(res.body, /href="\/staff\/login"/);
+    assert.doesNotMatch(res.body, /href="\/staff\/login"/);
     assert.match(res.body, /dir="rtl"/);
     assert.doesNotMatch(res.body, /\/auth\/dev/);
 

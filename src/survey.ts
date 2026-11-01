@@ -116,8 +116,8 @@ export const SURVEY: Survey = {
     {
       id: "reserve",
       kind: "choice",
-      label: "האם אתה משרת מילואים?",
-      labelFemale: "האם את משרתת מילואים?",
+      label: "האם אתה משרת במילואים?",
+      labelFemale: "האם את משרתת במילואים?",
       required: true,
       options: YES_NO,
     },

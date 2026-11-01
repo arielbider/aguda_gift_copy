@@ -10,7 +10,7 @@ import { pool } from "./db.ts";
  * and the photo are updated.
  */
 export const GIFTS: Gift[] = [
-  { id: 1, name: "תיק גב", description: "תיק גב שחור עם לוגו האגודה", image: "backpack.jpeg" },
+  { id: 1, name: "תיק גב", description: "תיק גב שחור", image: "backpack.jpeg" },
   { id: 2, name: "כוס תרמית", description: "כוס תרמית לבנה עם מכסה", image: "hot_cup.jpeg" },
   { id: 3, name: "מעמד למחשב נייד", description: "מעמד מתקפל עם גובה מתכוונן", image: "laptop_holder.jpeg" },
   { id: 4, name: "צידנית", description: "צידנית עם שני תאים", image: "lunch_bag.jpeg" },

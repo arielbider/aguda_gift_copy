@@ -109,8 +109,8 @@ export const T = {
 
   survey: {
     title: "סקר",
-    intro: "לפני בחירת המתנה, ענה על הסקר.",
-    introFemale: "לפני בחירת המתנה, עני על הסקר.",
+    intro: "לפני בחירת המתנה, בבקשה ענה על הסקר.",
+    introFemale: "לפני בחירת המתנה, בבקשה עני על הסקר.",
     submit: "שלח",
     submitFemale: "שלחי",
     required: "חובה",

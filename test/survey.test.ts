@@ -185,9 +185,9 @@ describe("the live survey", () => {
     const her = await page(ids[0]);
     const him = await page(ids[1]);
     assert.match(her, /האם את גרה במעונות\?/);
-    assert.match(her, /האם את משרתת מילואים\?/);
+    assert.match(her, /האם את משרתת במילואים\?/);
     assert.match(him, /האם אתה גר במעונות\?/, "unknown gender is masculine");
-    assert.match(him, /האם אתה משרת מילואים\?/);
+    assert.match(him, /האם אתה משרת במילואים\?/);
     assert.match(her, /האם את שייכת לאחת מהאוכלוסיות הבאות\?/);
     assert.match(him, /האם אתה שייך לאחת מהאוכלוסיות הבאות\?/);
     for (const html of [her, him]) {

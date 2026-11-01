@@ -447,6 +447,8 @@ function layout(body: string, wide = false, brand = false): string {
   /* A follow-up shows only once its own option is picked. CSS only, no JavaScript. */
   .option input:not(:checked) ~ .follow { display: none; }
   .when { display: none; margin-block-start: 0.5rem; }
+  .follow-block { display: block; margin-block-start: 0.4rem; }
+  .follow-block input { margin-block-end: 0; }
   textarea { font: inherit; width: 100%; box-sizing: border-box; padding: 0.5rem; }
 </style>
 </head>
@@ -654,18 +656,27 @@ export function surveyPage(
     if (!o.follow) return "";
     const key = followKey(q.id, o.follow);
     if (o.follow.kind === "text") {
-      return ` <input type="text" class="follow" name="${esc(key)}" maxlength="1000" value="${esc(values[key])}">`;
+      const input = `<input type="text" name="${esc(key)}" maxlength="1000" value="${esc(values[key])}"`;
+      // With a prompt, the question and a full-width box on their own line (request 62).
+      if (o.follow.prompt) {
+        return `<span class="follow follow-block">${esc((female && o.follow.promptFemale) || o.follow.prompt)}${input}></span>`;
+      }
+      return ` ${input.replace("<input", '<input class="follow"')}>`;
     }
     if (o.follow.kind === "multi") {
       const picked = new Set((Array.isArray(values[key]) ? values[key] : [values[key]]).map(String));
-      const otherKey = `${key}_text`;
       return `<div class="choices">${o.follow.options
-        .map((x) => `<label class="option"><input type="checkbox" name="${esc(key)}" value="${esc(x.value)}"${picked.has(x.value) ? " checked" : ""}> ${esc((female && x.labelFemale) || x.label)}${
-          // The optional text box of "אחר", shown only while it is checked (CSS).
-          o.follow!.kind === "multi" && o.follow!.otherText === x.value
-            ? ` <input type="text" class="follow" name="${esc(otherKey)}" maxlength="1000" value="${esc(values[otherKey])}">`
-            : ""
-        }</label>`)
+        .map((x) => {
+          // An option's own optional text box, shown only while it is checked (CSS).
+          const box = x.follow?.kind === "text"
+            ? (() => {
+                const name = `${key}_${x.value}`;
+                const hint = (female && x.follow.placeholderFemale) || x.follow.placeholder;
+                return ` <input type="text" class="follow" name="${esc(name)}" maxlength="1000" value="${esc(values[name])}"${hint ? ` placeholder="${esc(hint)}"` : ""}>`;
+              })()
+            : "";
+          return `<label class="option"><input type="checkbox" name="${esc(key)}" value="${esc(x.value)}"${picked.has(x.value) ? " checked" : ""}> ${esc((female && x.labelFemale) || x.label)}${box}</label>`;
+        })
         .join("")}</div>`;
     }
     const groups = o.follow.groups

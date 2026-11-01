@@ -844,6 +844,8 @@ document is a wish list, and a section in it is not a request.
 | 59 | A מנכ"ל can reset every gift selection that was not handed over; the units return to their stock |
 | 60 | Above the gifts: "שים לב שבחירת המתנה תקפה רק ליום חלוקתה." |
 | 61 | The student login page has no link to the staff login page; staff open `/staff/login` directly |
+| 62 | "לא" to the dorms question asks "באיזו שכונה אתה גר?" with a required text box. Survey version 5 |
+| 63 | The disability category is "עם מוגבלות", with its own optional text box (gray text "רשום איזו"). Survey version 6 |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

@@ -196,14 +196,14 @@ describe("the live survey", () => {
     }
   });
 
-  test("version 4: no extra questions, no checkbox, and old extra answers are not stored", async () => {
+  test("version 6: no extra questions, no checkbox, and old extra answers are not stored", async () => {
     const { SURVEY: LIVE } = await import("../src/survey.ts");
-    assert.equal(LIVE.version, 4);
+    assert.equal(LIVE.version, 6);
     assert.deepEqual(LIVE.questions.map((q) => q.id), ["dorms", "reserve", "special", "more"]);
-    const sent = { dorms: "no", reserve: "no", special: "no", extra_open: "1", fences: "disaster", father: "no", welfare: "yes", elections: "pirates" };
+    const sent = { dorms: "no", dorms_text: "רחביה", reserve: "no", special: "no", extra_open: "1", fences: "disaster", father: "no", welfare: "yes", elections: "pirates" };
     const result = validate(LIVE, sent);
     assert.ok(result.ok);
-    assert.deepEqual(Object.keys(result.answers).sort(), ["dorms", "reserve", "special"]);
+    assert.deepEqual(Object.keys(result.answers).sort(), ["dorms", "dorms_text", "reserve", "special"]);
   });
 });
 
@@ -218,21 +218,21 @@ describe("dorms, special population, and more", () => {
     assert.deepEqual(!fake.ok && fake.errors, { dorms: "invalid" });
     const real = validate(LIVE, { ...base, dorms: "yes", dorms_choice: "reznik" });
     assert.ok(real.ok && real.answers.dorms_choice === "reznik");
-    const no = validate(LIVE, { ...base, dorms: "no", dorms_choice: "reznik" });
+    const no = validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה", dorms_choice: "reznik" });
     assert.ok(no.ok && !("dorms_choice" in no.answers));
   });
 
   test("special population: כן needs at least one category, any number, each a real one", async () => {
     const { SURVEY: LIVE } = await import("../src/survey.ts");
-    const none = validate(LIVE, { ...base, dorms: "no", special: "yes" });
+    const none = validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה", special: "yes" });
     assert.deepEqual(!none.ok && none.errors, { special: "required" });
-    const fake = validate(LIVE, { ...base, dorms: "no", special: "yes", special_choices: ["druze", "martian"] });
+    const fake = validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה", special: "yes", special_choices: ["druze", "martian"] });
     assert.deepEqual(!fake.ok && fake.errors, { special: "invalid" });
-    const one = validate(LIVE, { ...base, dorms: "no", special: "yes", special_choices: "druze" });
+    const one = validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה", special: "yes", special_choices: "druze" });
     assert.ok(one.ok && JSON.stringify(one.answers.special_choices) === '["druze"]');
-    const many = validate(LIVE, { ...base, dorms: "no", special: "yes", special_choices: ["religious", "lgbtq", "other"] });
+    const many = validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה", special: "yes", special_choices: ["religious", "lgbtq", "other"] });
     assert.ok(many.ok && (many.answers.special_choices as string[]).length === 3);
-    const no = validate(LIVE, { ...base, dorms: "no", special: "no", special_choices: ["druze"] });
+    const no = validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה", special: "no", special_choices: ["druze"] });
     assert.ok(no.ok && !("special_choices" in no.answers), "categories are dropped after לא");
   });
 
@@ -244,19 +244,21 @@ describe("dorms, special population, and more", () => {
     assert.ok(follow.kind === "multi");
     assert.deepEqual(follow.options.map((o) => o.label.split(" (")[0]), [
       "חרדי", "דתי", "מסורתי", "חילוני", "מוסלמי", "נוצרי", "דרוזי", "צ'רקסי",
-      "משתייך לקהילת יוצאי אתיופיה", 'משתייך לקהילת הלהט"ב', "אדם עם מוגבלות", "אחר",
+      "משתייך לקהילת יוצאי אתיופיה", 'משתייך לקהילת הלהט"ב', "עם מוגבלות", "אחר",
     ]);
   });
 
-  test("אחר opens an optional text, kept only while אחר is checked", async () => {
+  test("אחר and עם מוגבלות each open an optional text, kept only while checked (request 63)", async () => {
     const { SURVEY: LIVE } = await import("../src/survey.ts");
-    const yes = { ...base, dorms: "no", special: "yes" };
-    const withText = validate(LIVE, { ...yes, special_choices: ["disability", "other"], special_choices_text: " לקות שמיעה " });
-    assert.ok(withText.ok && withText.answers.special_choices_text === "לקות שמיעה");
-    const empty = validate(LIVE, { ...yes, special_choices: ["other"], special_choices_text: "" });
-    assert.ok(empty.ok && !("special_choices_text" in empty.answers), "the text is optional");
-    const notOther = validate(LIVE, { ...yes, special_choices: ["druze"], special_choices_text: "leftover" });
-    assert.ok(notOther.ok && !("special_choices_text" in notOther.answers), "dropped when אחר is not checked");
+    const yes = { ...base, dorms: "no", dorms_text: "רחביה", special: "yes" };
+    const both = validate(LIVE, { ...yes, special_choices: ["disability", "other"], special_choices_disability: " לקות שמיעה ", special_choices_other: " משהו " });
+    assert.ok(both.ok);
+    assert.equal(both.answers.special_choices_disability, "לקות שמיעה");
+    assert.equal(both.answers.special_choices_other, "משהו");
+    const empty = validate(LIVE, { ...yes, special_choices: ["disability"], special_choices_disability: "" });
+    assert.ok(empty.ok && !("special_choices_disability" in empty.answers), "the text is optional");
+    const unchecked = validate(LIVE, { ...yes, special_choices: ["druze"], special_choices_disability: "x", special_choices_other: "y" });
+    assert.ok(unchecked.ok && !("special_choices_disability" in unchecked.answers) && !("special_choices_other" in unchecked.answers));
   });
 
   test("special population renders as a dropdown, and כן reveals gendered checkboxes", async () => {
@@ -273,13 +275,34 @@ describe("dorms, special population, and more", () => {
     assert.equal(html.split('type="checkbox" name="special_choices"').length - 1, 12);
     assert.match(html, /value="religious"> דתייה/);
     assert.match(html, /value="lgbtq"> משתייכת לקהילת הלהט&quot;ב/);
-    assert.match(html, /value="disability"> אדם עם מוגבלות \(כדי לפרט את סוג המוגבלות, בחרי גם &quot;אחר&quot; וכתבי שם\)/);
-    assert.match(html, /value="other"> אחר <input type="text" class="follow" name="special_choices_text"/);
+    assert.match(html, /value="disability"> עם מוגבלות <input type="text" class="follow" name="special_choices_disability" maxlength="1000" value="" placeholder="רשמי איזו">/);
+    assert.match(html, /value="other"> אחר <input type="text" class="follow" name="special_choices_other" maxlength="1000" value="">/);
+  });
+
+  test("לא to the dorms asks for the neighborhood: required, stored, and dropped after כן (request 62)", async () => {
+    const { SURVEY: LIVE } = await import("../src/survey.ts");
+    const missing = validate(LIVE, { ...base, dorms: "no", dorms_text: " " });
+    assert.deepEqual(!missing.ok && missing.errors, { dorms: "required" });
+    const given = validate(LIVE, { ...base, dorms: "no", dorms_text: " קטמונים " });
+    assert.ok(given.ok && given.answers.dorms_text === "קטמונים");
+    const yes = validate(LIVE, { ...base, dorms: "yes", dorms_choice: "reznik", dorms_text: "leftover" });
+    assert.ok(yes.ok && !("dorms_text" in yes.answers));
+  });
+
+  test("the neighborhood box has its own gendered question, hidden until לא", async () => {
+    const live = await buildApp({
+      google: noGoogle, sessionSecret: "s".repeat(32), domains: { student: ["mail.huji.ac.il"], staff: ["aguda.org.il"] },
+      devLogin: true, production: false, origin: ORIGIN,
+    });
+    await pool.query("UPDATE students SET gender = 'נקבה' WHERE national_id = $1", [ids[0]]);
+    const r = await live.inject({ method: "POST", url: "/auth/dev", ...form(`kind=student&national_id=${ids[0]}`) });
+    const html = (await live.inject({ url: "/student", cookies: { session: r.cookies.find((c) => c.name === "session")!.value } })).body;
+    assert.match(html, /value="no"> לא<span class="follow follow-block">באיזו שכונה את גרה\?<input type="text" name="dorms_text"/);
   });
 
   test("the last question is optional", async () => {
     const { SURVEY: LIVE } = await import("../src/survey.ts");
-    assert.ok(validate(LIVE, { ...base, dorms: "no" }).ok);
+    assert.ok(validate(LIVE, { ...base, dorms: "no", dorms_text: "רחביה" }).ok);
   });
 
   test("the dorm list is exactly the owner's list of 2026-10-23, each value once", async () => {

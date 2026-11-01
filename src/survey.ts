@@ -30,9 +30,11 @@ export type Option = {
    * followKey().
    */
   follow?:
-    | { kind: "text" }
+    // prompt: a question above the box; placeholder: gray text inside it.
+    | { kind: "text"; prompt?: string; promptFemale?: string; placeholder?: string; placeholderFemale?: string }
     | { kind: "select"; groups: { label: string; options: Option[] }[] }
-    | { kind: "multi"; options: Option[]; otherText?: string };
+    // A checkbox option with its own text follow-up gets an optional box: <key>_<value>.
+    | { kind: "multi"; options: Option[] };
 };
 export type Question =
   | (Base & { kind: "text" })
@@ -67,7 +69,7 @@ const DORMS = [
 /**
  * The special populations a student can mark, as the owner listed them on 2026-10-26 (any
  * number). Each has a masculine label and, where it differs, a feminine one. "אחר" opens an
- * optional text box (otherText), where a student can also detail a disability.
+ * optional text box, and so does "עם מוגבלות" (request 63), for the student to detail.
  */
 const SPECIAL_POPULATIONS: Option[] = [
   { value: "haredi", label: "חרדי", labelFemale: "חרדית" },
@@ -82,10 +84,10 @@ const SPECIAL_POPULATIONS: Option[] = [
   { value: "lgbtq", label: "משתייך לקהילת הלהט\"ב", labelFemale: "משתייכת לקהילת הלהט\"ב" },
   {
     value: "disability",
-    label: "אדם עם מוגבלות (כדי לפרט את סוג המוגבלות, בחר גם \"אחר\" וכתוב שם)",
-    labelFemale: "אדם עם מוגבלות (כדי לפרט את סוג המוגבלות, בחרי גם \"אחר\" וכתבי שם)",
+    label: "עם מוגבלות",
+    follow: { kind: "text", placeholder: "רשום איזו", placeholderFemale: "רשמי איזו" },
   },
-  { value: "other", label: "אחר" },
+  { value: "other", label: "אחר", follow: { kind: "text" } },
 ];
 
 const YES_NO: Option[] = [
@@ -98,9 +100,11 @@ const YES_NO: Option[] = [
  * on 2026-10-20. Version 2: the owner's new special-population list (2026-10-26).
  * Version 3: the social-media question is removed, and with it the media links.
  * Version 4: the four optional extra questions are removed, with their checkbox.
+ * Version 5: a student not in the dorms names their neighborhood (dorms_text).
+ * Version 6: "עם מוגבלות" gets its own text box; the boxes are special_choices_<value>.
  */
 export const SURVEY: Survey = {
-  version: 4,
+  version: 6,
   questions: [
     {
       id: "dorms",
@@ -110,7 +114,8 @@ export const SURVEY: Survey = {
       required: true,
       options: [
         { value: "yes", label: "כן", follow: { kind: "select", groups: DORMS } },
-        { value: "no", label: "לא" },
+        // Request 62: where the student lives instead.
+        { value: "no", label: "לא", follow: { kind: "text", prompt: "באיזו שכונה אתה גר?", promptFemale: "באיזו שכונה את גרה?" } },
       ],
     },
     {
@@ -129,7 +134,7 @@ export const SURVEY: Survey = {
       labelFemale: "האם את שייכת לאחת מהאוכלוסיות הבאות?",
       required: true,
       options: [
-        { value: "yes", label: "כן", follow: { kind: "multi", options: SPECIAL_POPULATIONS, otherText: "other" } },
+        { value: "yes", label: "כן", follow: { kind: "multi", options: SPECIAL_POPULATIONS } },
         { value: "no", label: "לא" },
       ],
     },
@@ -191,12 +196,13 @@ export function validate(
             else if (picked.length === 0) errors[q.id] = "required";
             else {
               answers[key] = [...new Set(picked)];
-              // The optional text of the otherText option, kept only when it is checked.
-              if (o.follow.otherText && picked.includes(o.follow.otherText)) {
-                const raw = body[`${key}_text`];
+              // The optional text of each checked option that has one, as <key>_<value>.
+              for (const x of o.follow.options) {
+                if (x.follow?.kind !== "text" || !picked.includes(x.value)) continue;
+                const raw = body[`${key}_${x.value}`];
                 const text = typeof raw === "string" ? raw.trim() : "";
                 if (text.length > MAX_TEXT) errors[q.id] = "invalid";
-                else if (text) answers[`${key}_text`] = text;
+                else if (text) answers[`${key}_${x.value}`] = text;
               }
             }
             continue;

@@ -235,6 +235,57 @@ describe("students with several campuses pick where to collect (request 57)", ()
   });
 });
 
+describe("the ceo resets every selection not handed over (request 59)", () => {
+  test("only untaken selections are cleared, each stock point gets its units back", async () => {
+    await setCampuses(ids[0], ["רחובות"]);
+    await pool.query("UPDATE students SET campuses = '{עין כרם}', sub_campus = 'קפלן' WHERE national_id = $1", [ids[1]]);
+    await selectGift(ids[0], 1); // רחובות, not taken
+    await selectGift(ids[1], 1); // קפלן, not taken
+    await selectGift(ids[2], 1); // הר הצופים, taken
+    await selectGift(ids[3], 2); // הר הצופים, not taken
+    await markTaken(ids[2]);
+    const ceo = await asStaff("chief@aguda.org.il");
+
+    const list = (await app.inject({ url: "/manager/gifts", cookies: ceo })).body;
+    assert.match(list, /action="\/manager\/gifts\/reset-all"/);
+    const confirm = await app.inject({ method: "POST", url: "/manager/gifts/reset-all", cookies: ceo, ...form({}) });
+    assert.match(confirm.body, /בחירות שלא נמסרו: <bdi dir="ltr">3<\/bdi>/);
+    assert.equal((await student(ids[0])).gift_id, 1, "the confirm page changes nothing");
+
+    const done = await app.inject({ method: "POST", url: "/manager/gifts/reset-all", cookies: ceo, ...form({ confirm: "1" }) });
+    assert.equal(done.headers.location, "/manager/gifts?done=reset_all&n=3");
+    for (const id of [ids[0], ids[1], ids[3]]) assert.equal((await student(id)).gift_id, null, id);
+    assert.equal((await student(ids[2])).gift_id, 1, "the handed-over gift stays");
+    assert.ok((await student(ids[2])).gift_taken_at);
+    assert.equal((await gift(1, "רחובות")).requested_count, 0);
+    assert.equal((await gift(1, "קפלן")).requested_count, 0);
+    assert.equal((await gift(1, TEST_CAMPUS)).requested_count, 1);
+    assert.equal((await gift(2, TEST_CAMPUS)).requested_count, 0);
+    assert.deepEqual(await counterDrift(), []);
+    assert.equal((await selectGift(ids[0], 1)).ok, true, "the student selects again");
+
+    await pool.query("UPDATE students SET gift_id = NULL WHERE national_id = $1", [ids[0]]);
+    await pool.query("UPDATE gift_stock SET requested_count = 0 WHERE gift_id = 1 AND campus = 'רחובות'");
+    const none = await app.inject({ method: "POST", url: "/manager/gifts/reset-all", cookies: ceo, ...form({}) });
+    assert.equal(none.headers.location, "/manager/gifts?error=none_to_reset");
+  });
+
+  test("only a ceo can reset", async () => {
+    await selectGift(ids[0], 1);
+    for (const email of ["harboss@aguda.org.il", "har@aguda.org.il"]) {
+      const res = await app.inject({ method: "POST", url: "/manager/gifts/reset-all", cookies: await asStaff(email), ...form({ confirm: "1" }) });
+      assert.equal(res.statusCode, 403, email);
+    }
+    assert.equal((await student(ids[0])).gift_id, 1);
+  });
+
+  test("the gift page says a selection is valid only for its distribution day (request 60)", async () => {
+    const page = (await app.inject({ url: "/student", cookies: await login({ kind: "student", national_id: ids[0] }) })).body;
+    const note = page.indexOf("שים לב שבחירת המתנה תקפה רק ליום חלוקתה.");
+    assert.ok(note > 0 && note < page.indexOf('class="gifts"'), "above the gifts");
+  });
+});
+
 describe("the desk sees its own campus only", () => {
   test("a worker of another campus learns only the student's campus", async () => {
     await selectGift(ids[0], 1);

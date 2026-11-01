@@ -363,25 +363,25 @@ describe("staff page", () => {
     assert.equal((await student(ids[0])).gift_id, 1);
   });
 
-  test("five wrong IDs in a row remove the staff member and alert the ceo (requests 34, 35)", async () => {
+  test("ten wrong IDs remove the staff member and alert the ceo (requests 34, 35, 58)", async () => {
     const cookies = await asStaff();
     const search = (national_id: string) => app.inject({ method: "POST", url: "/staff/lookup", cookies, ...form({ national_id }) });
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 9; i++) {
       const res = await search(`99999999${i}`);
-      assert.match(res.body, new RegExp(`ניסיונות שנותרו: <bdi dir="ltr">${5 - i}</bdi>`), `try ${i}`);
+      assert.match(res.body, new RegExp(`ניסיונות שנותרו: <bdi dir="ltr">${10 - i}</bdi>`), `try ${i}`);
     }
     const ceo = await login({ kind: "staff", email: "chief@aguda.org.il" });
     assert.doesNotMatch((await app.inject({ url: "/manager", cookies: ceo })).body, /alerts\/clear/, "no alert yet");
 
-    const fifth = await search("999999995");
-    assert.equal(fifth.headers.location, "/staff/login?error=removed_lookups");
-    assert.equal(fifth.cookies.find((c) => c.name === "session")?.value, "", "the session is cleared");
+    const tenth = await search("999999990");
+    assert.equal(tenth.headers.location, "/staff/login?error=removed_lookups");
+    assert.equal(tenth.cookies.find((c) => c.name === "session")?.value, "", "the session is cleared");
     assert.equal((await pool.query("SELECT 1 FROM staff WHERE email = 'dana@aguda.org.il'")).rowCount, 0);
     assert.equal((await app.inject({ url: "/staff", cookies })).headers.location, "/staff/login?error=not_staff");
     assert.match((await app.inject("/staff/login?error=removed_lookups")).body, /הסרנו אותך מרשימת הצוות/);
 
     const page = (await app.inject({ url: "/manager", cookies: ceo })).body;
-    assert.match(page, /<div class="error"><ul><li>הסרנו מרשימת הצוות את <bdi dir="ltr">dana@aguda\.org\.il<\/bdi> \(עובד\) אחרי 5 חיפושים/);
+    assert.match(page, /<div class="error"><ul><li>הסרנו מרשימת הצוות את <bdi dir="ltr">dana@aguda\.org\.il<\/bdi> \(עובד\) אחרי 10 חיפושים/);
     assert.doesNotMatch(page, /99999999/, "the typed IDs are not shown");
     assert.doesNotMatch((await app.inject({ url: "/manager", cookies: await asManager() })).body, /alerts\/clear/, "only a ceo sees alerts");
   });
@@ -403,18 +403,22 @@ describe("staff page", () => {
     assert.equal((await app.inject({ method: "POST", url: "/manager/alerts/clear", cookies: ceo, ...form({ up_to: "soon" }) })).statusCode, 400);
   });
 
-  test("a found student resets the count; an empty search does not count", async () => {
+  test("a found student does not reset the count; an empty search does not count (request 58)", async () => {
     const cookies = await asStaff();
     const search = (national_id: string) => app.inject({ method: "POST", url: "/staff/lookup", cookies, ...form({ national_id }) });
     for (let i = 0; i < 4; i++) await search("999");
     await search(ids[0]);
     for (let i = 0; i < 4; i++) await search("999");
     for (let i = 0; i < 3; i++) await search("  ");
-    assert.equal((await pool.query("SELECT failed_lookups FROM staff WHERE email = 'dana@aguda.org.il'")).rows[0].failed_lookups, 4);
+    assert.equal((await pool.query("SELECT failed_lookups FROM staff WHERE email = 'dana@aguda.org.il'")).rows[0].failed_lookups, 8);
+    await search(ids[0]);
+    await search("999");
+    const last = await search("999");
+    assert.equal(last.headers.location, "/staff/login?error=removed_lookups", "the tenth in total, with finds between");
   });
 
   test("two wrong searches at the same moment remove the person once, with one alert", async () => {
-    await pool.query("UPDATE staff SET failed_lookups = 4 WHERE email = 'dana@aguda.org.il'");
+    await pool.query("UPDATE staff SET failed_lookups = 9 WHERE email = 'dana@aguda.org.il'");
     const { recordLookup } = await import("../src/staff.ts");
     const results = await Promise.all([recordLookup("dana@aguda.org.il", false), recordLookup("dana@aguda.org.il", false)]);
     assert.equal(results.filter((r) => r.removed).length, 1);
@@ -423,12 +427,12 @@ describe("staff page", () => {
 
   test("the rule removes a manager too, but never a ceo from the fixed list (request 56)", async () => {
     const boss = await asManager();
-    for (let i = 0; i < 5; i++) await app.inject({ method: "POST", url: "/staff/lookup", cookies: boss, ...form({ national_id: "999" }) });
+    for (let i = 0; i < 10; i++) await app.inject({ method: "POST", url: "/staff/lookup", cookies: boss, ...form({ national_id: "999" }) });
     assert.equal((await pool.query("SELECT 1 FROM staff WHERE email = 'boss@aguda.org.il'")).rowCount, 0);
     assert.equal((await pool.query("SELECT staff_alerts FROM settings")).rows[0].staff_alerts[0].role, "manager");
 
     const ceo = await login({ kind: "staff", email: "chief@aguda.org.il" });
-    for (let i = 0; i < 6; i++) await app.inject({ method: "POST", url: "/staff/lookup", cookies: ceo, ...form({ national_id: "999" }) });
+    for (let i = 0; i < 11; i++) await app.inject({ method: "POST", url: "/staff/lookup", cookies: ceo, ...form({ national_id: "999" }) });
     assert.equal((await app.inject({ url: "/staff", cookies: ceo })).statusCode, 200, "the ceo keeps access");
     assert.equal((await pool.query("SELECT jsonb_array_length(staff_alerts) AS n FROM settings")).rows[0].n, 1);
   });

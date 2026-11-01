@@ -7,8 +7,8 @@ import multipart from "@fastify/multipart";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { decide, type Domains, type Door, findStudentByEmail, type GoogleLogin, googleLogin } from "./auth.ts";
 import { pool } from "./db.ts";
-import { chooseCampus, markTaken, resetStudent, selectGift, unmarkTaken } from "./gifts.ts";
-import { campusChoicePage, confirmPage, demoBanner, esc, isFemale, lapsedText, loginPage, ltr, type ManagerDone, type ManagerError, managerPage, noSelectionText, receivedConfirmPage, resetConfirmPage, selectionsPage, studentUpdatesPage, unmarkConfirmPage, studentErrorText, type Notice, type RefusalReason, type StaffRefusal, staffLoginPage, staffPage, type StudentError, type StudentRefusal, studentPage, surveyPage, T, when } from "./pages.ts";
+import { chooseCampus, countUntaken, markTaken, resetStudent, resetUntakenSelections, selectGift, unmarkTaken } from "./gifts.ts";
+import { campusChoicePage, confirmPage, demoBanner, resetAllConfirmPage, esc, isFemale, lapsedText, loginPage, ltr, type ManagerDone, type ManagerError, managerPage, noSelectionText, receivedConfirmPage, resetConfirmPage, selectionsPage, studentUpdatesPage, unmarkConfirmPage, studentErrorText, type Notice, type RefusalReason, type StaffRefusal, staffLoginPage, staffPage, type StudentError, type StudentRefusal, studentPage, surveyPage, T, when } from "./pages.ts";
 import { findStudent, listGifts, listSelections, listUpdates, staffStats, type StudentView } from "./queries.ts";
 import { startSyncSchedule } from "./schedule.ts";
 import { type Actor, setCeos, addStaff, listStaff, MAX_FAILED_LOOKUPS, RANK, recordLookup, removeStaff, type Role, roleOf, setStock, staffOf } from "./staff.ts";
@@ -448,7 +448,7 @@ export async function buildApp(options: AppOptions) {
       if (!id) return html(reply, await desk(request));
       const student = await findStudent(id);
 
-      // Request 34: the fifth wrong ID in a row removes this staff member. recordLookup()
+      // Requests 34 and 58: the tenth wrong ID in total removes this staff member. recordLookup()
       // also adds the alert that every ceo sees on the manager page (request 35).
       const record = await recordLookup(staffEmail(request), student !== null);
       if (record.removed) {
@@ -596,18 +596,35 @@ export async function buildApp(options: AppOptions) {
 
   // Request 40: a ceo sees every gift selection, and reverses a mistaken handout. The
   // national ID travels in the POST body, never in a URL (plan §12).
-  app.get<{ Querystring: { done?: string; error?: string } }>(
+  app.get<{ Querystring: { done?: string; error?: string; n?: string } }>(
     "/manager/gifts",
     { preHandler: requireStaff("ceo") },
     async (request, reply) => {
-      const { done, error } = request.query;
+      const { done, error, n } = request.query;
       const message: Notice | undefined =
-        done === "unmarked" ? { kind: "ok", text: T.manager.unmarkDone }
+        done === "reset_all" ? { kind: "ok", text: `${T.manager.resetAllDone} ${ltr(Number(n) || 0)}` }
+        : error === "none_to_reset" ? { kind: "warn", text: T.manager.resetAllNone }
+        : done === "unmarked" ? { kind: "ok", text: T.manager.unmarkDone }
         : done === "removed" ? { kind: "ok", text: T.manager.removeDone }
         : error === "not_taken" ? { kind: "warn", text: T.manager.unmarkNotTaken }
         : error === "taken" ? { kind: "error", text: T.manager.removeTaken }
         : undefined;
       return html(reply, selectionsPage({ email: staffEmail(request), rows: await listSelections(), message }));
+    },
+  );
+
+  // Request 59: a ceo deletes every selection that was not handed over, after a confirm step.
+  app.post<{ Body: { confirm?: string } }>(
+    "/manager/gifts/reset-all",
+    { preHandler: requireStaff("ceo") },
+    async (request, reply) => {
+      if (request.body?.confirm !== "1") {
+        const count = await countUntaken();
+        return count ? html(reply, resetAllConfirmPage(count)) : reply.redirect("/manager/gifts?error=none_to_reset");
+      }
+      const n = await resetUntakenSelections();
+      request.log.info({ by: staffEmail(request), reset: n }, "selections not handed over reset");
+      return reply.redirect(`/manager/gifts?done=reset_all&n=${n}`);
     },
   );
 

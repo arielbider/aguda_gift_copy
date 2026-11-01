@@ -135,6 +135,39 @@ export async function markTaken(nationalId: string): Promise<TakeResult> {
   });
 }
 
+/** Request 59: how many selections are not handed over yet. */
+export async function countUntaken(): Promise<number> {
+  const r = await pool.query("SELECT count(*)::int AS n FROM students WHERE gift_id IS NOT NULL AND gift_taken_at IS NULL");
+  return r.rows[0].n;
+}
+
+/**
+ * Request 59. A ceo deletes every selection that was not handed over: the units return to
+ * their stock points, and the students can select again. One statement: the cleared rows
+ * feed the counter update, and each counter goes down by what was cleared there, so a
+ * selection made at the same moment keeps its count. A handed-over gift never changes.
+ */
+export async function resetUntakenSelections(): Promise<number> {
+  const r = await pool.query(`
+    WITH old AS (
+      -- RETURNING gives new values, so the old gift is read here, with the rows locked.
+      SELECT national_id, gift_id FROM students
+       WHERE gift_id IS NOT NULL AND gift_taken_at IS NULL
+         FOR UPDATE
+    ), cleared AS (
+      UPDATE students s SET gift_id = NULL
+        FROM old WHERE s.national_id = old.national_id AND s.gift_taken_at IS NULL
+      RETURNING old.gift_id AS old_gift, s.stock_campus
+    ), counted AS (
+      SELECT old_gift, stock_campus, count(*)::int AS n FROM cleared GROUP BY 1, 2
+    ), released AS (
+      UPDATE gift_stock k SET requested_count = k.requested_count - c.n
+        FROM counted c WHERE k.gift_id = c.old_gift AND k.campus = c.stock_campus
+    )
+    SELECT coalesce(sum(n), 0)::int AS n FROM counted`);
+  return r.rows[0].n;
+}
+
 export type UnmarkResult = { ok: true } | { ok: false; reason: "unknown_student" | "not_taken" };
 
 /**

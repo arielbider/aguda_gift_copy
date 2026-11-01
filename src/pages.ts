@@ -36,7 +36,7 @@ export const T = {
   /** Refusals on the staff login page. */
   staffRefused: {
     not_staff: "החשבון הזה אינו ברשימת הצוות. פנה למנהל באגודה.",
-    removed_lookups: "הסרנו אותך מרשימת הצוות, אחרי 5 חיפושים ברצף של מספר זהות שאינו קיים. פנה למנהל באגודה.",
+    removed_lookups: "הסרנו אותך מרשימת הצוות, אחרי 10 חיפושים של מספר זהות שאינו קיים. פנה למנהל באגודה.",
     no_domain: "התחבר עם חשבון האוניברסיטה או עם חשבון האגודה, לא עם חשבון Gmail פרטי.",
     wrong_domain: "החשבון הזה אינו חשבון של האוניברסיטה או של האגודה.",
     unverified_email: "Google לא אישר את כתובת הדוא\"ל של החשבון.",
@@ -62,6 +62,9 @@ export const T = {
     choose: "בחירת מתנה",
     chooseHint: "בחר מתנה אחת בלבד. הבחירה סופית.",
     chooseHintFemale: "בחרי מתנה אחת בלבד. הבחירה סופית.",
+    /** Request 60: shown above the gifts. */
+    validOneDay: "שים לב שבחירת המתנה תקפה רק ליום חלוקתה.",
+    validOneDayFemale: "שימי לב שבחירת המתנה תקפה רק ליום חלוקתה.",
     select: "בחר",
     selectFemale: "בחרי",
     soldOut: "אזל",
@@ -143,7 +146,7 @@ export const T = {
     find: "חפש",
     notFound: "לא מצאנו סטודנט עם מספר הזהות הזה.",
     /** Request 34: the warning after a wrong ID; the number of tries left follows. */
-    triesLeft: "אחרי 5 חיפושים ברצף של מספר זהות שאינו קיים, נסיר אותך מרשימת הצוות. ניסיונות שנותרו:",
+    triesLeft: "אחרי 10 חיפושים של מספר זהות שאינו קיים, נסיר אותך מרשימת הצוות. ניסיונות שנותרו:",
     membership: "חברות באגודה",
     updated: "נכון ל־",
     gift: "מתנה שנבחרה",
@@ -211,7 +214,7 @@ export const T = {
     save: "שמור",
     /** Request 35: alerts for the ceo about staff removed after 5 wrong IDs. */
     alertRemoved: "הסרנו מרשימת הצוות את",
-    alertReason: "אחרי 5 חיפושים ברצף של מספר זהות שאינו קיים.",
+    alertReason: "אחרי 10 חיפושים של מספר זהות שאינו קיים.",
     alertsClear: "נקה את ההתראות",
     /** Request 54: the ceo uploads an updated student list. */
     updates: "עדכן את רשימת הסטודנטים",
@@ -262,6 +265,14 @@ export const T = {
     removeSelection: "מחק את הבחירה",
     removeDone: "מחקנו את הבחירה. הסטודנט יכול לבחור מתנה מחדש.",
     removeTaken: "המתנה כבר נמסרה, ולכן לא מחקנו את הבחירה. בטל קודם את המסירה.",
+    /** Request 59: the ceo deletes every selection that was not handed over. */
+    resetAll: "אפס את כל הבחירות שלא נמסרו",
+    resetAllTitle: "איפוס הבחירות שלא נמסרו",
+    resetAllCount: "בחירות שלא נמסרו:",
+    resetAllWarn: "נמחק את כל הבחירות האלה. המתנות יחזרו למלאי, והסטודנטים יבחרו מחדש. מתנות שנמסרו לא ישתנו. לא נוכל לשחזר את הבחירות.",
+    resetAllConfirm: "אפס את הבחירות",
+    resetAllDone: "איפסנו בחירות שלא נמסרו:",
+    resetAllNone: "אין בחירות שלא נמסרו.",
     /** Request 29: the ceo's downloads, one CSV file per table. */
     export: "הורדת הנתונים",
     exportHint: "קובץ CSV לכל טבלה. הקבצים כוללים פרטים אישיים של סטודנטים: שמור אותם במקום מוגן, ומחק אותם כשסיימת.",
@@ -602,6 +613,7 @@ ${registerImage(s.gender)}`);
 ${pickup}
 <h2>${T.student.choose}</h2>
 <p class="hint">${f ? T.student.chooseHintFemale : T.student.chooseHint}</p>
+<p class="warn">${f ? T.student.validOneDayFemale : T.student.validOneDay}</p>
 <div class="gifts">${cards}</div>`);
 }
 
@@ -931,11 +943,27 @@ export function selectionsPage(options: { email: string; rows: SelectionView[]; 
     `<div class="bar">${logo(null)}<h1>${M.selectionsTitle}</h1><span class="hint">${ltr(email)}</span>${logoutForm()}</div>
 <p><a href="/manager">${M.title}</a></p>
 ${notice(message)}
+${rows.some((r) => !r.gift_taken_at) ? `<form method="post" action="/manager/gifts/reset-all">
+  <button class="button secondary">${M.resetAll}</button>
+</form>` : ""}
 ${rows.length
   ? `<table><thead><tr>${M.selectionsCols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`
   : `<p class="hint">${M.selectionsNone}</p>`}`,
     true,
   );
+}
+
+/** Request 59: deleting every selection not handed over cannot be undone, so it takes a second step. */
+export function resetAllConfirmPage(count: number): string {
+  const M = T.manager;
+  return layout(`<h1>${M.resetAllTitle}</h1>
+<p class="big">${M.resetAllCount} ${ltr(count)}</p>
+<p class="warn">${M.resetAllWarn}</p>
+<form method="post" action="/manager/gifts/reset-all" onsubmit="this.querySelector('button').disabled = true;">
+  <input type="hidden" name="confirm" value="1">
+  <button class="button">${M.resetAllConfirm}</button>
+</form>
+<a class="button secondary" href="/manager/gifts">${T.staff.back}</a>`);
 }
 
 /** Request 40: a reversal lets a desk hand the gift over again, so it takes a second step. */

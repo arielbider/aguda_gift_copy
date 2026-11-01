@@ -1,7 +1,7 @@
 /** Site settings, in one row. Request 35: the staff alerts. */
 import { pool } from "./db.ts";
 
-/** Request 35. A staff member removed after 5 wrong IDs in a row. */
+/** Request 35. A staff member removed after 10 wrong IDs (request 58). */
 export type StaffAlert = { at: string; email: string; role: string };
 
 export async function staffAlerts(): Promise<StaffAlert[]> {

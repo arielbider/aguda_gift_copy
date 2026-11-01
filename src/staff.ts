@@ -138,17 +138,17 @@ export async function removeStaff(email: string, by: Actor): Promise<RemoveStaff
   return { ok: false, reason: (await roleOf(e)) ? "forbidden" : "not_found" };
 }
 
-/** Request 34: this many wrong national IDs in a row remove a staff member. */
-export const MAX_FAILED_LOOKUPS = 5;
+/** Requests 34 and 58: this many wrong national IDs in total remove a staff member. */
+export const MAX_FAILED_LOOKUPS = 10;
 
 export type LookupRecord =
   | { removed: false; failed: number }
   | { removed: true; role: Role };
 
 /**
- * Request 34. Records one desk search by a staff member. A search that finds a student
- * resets the count. A search that finds nobody adds one, and the fifth in a row removes the
- * person from the staff list, whatever the role, and adds an alert for the ceo (request 35).
+ * Requests 34 and 58. Records one desk search by a staff member. A search that finds nobody
+ * adds one; a search that finds a student changes nothing, so the count never resets. The
+ * tenth removes the person from the staff list, and adds an alert for the ceo (request 35).
  * One transaction, so two searches at the same moment cannot both read the old count.
  */
 export async function recordLookup(email: string, found: boolean): Promise<LookupRecord> {
@@ -156,8 +156,8 @@ export async function recordLookup(email: string, found: boolean): Promise<Looku
   // Request 56: nobody removes a ceo, so the rule does not count a ceo's searches.
   if (isCeo(e)) return { removed: false, failed: 0 };
   if (found) {
-    await pool.query("UPDATE staff SET failed_lookups = 0 WHERE email = $1 AND failed_lookups <> 0", [e]);
-    return { removed: false, failed: 0 };
+    const r = await pool.query("SELECT failed_lookups FROM staff WHERE email = $1", [e]);
+    return { removed: false, failed: r.rows[0]?.failed_lookups ?? 0 };
   }
   return transaction(async (db) => {
     const r = await db.query(

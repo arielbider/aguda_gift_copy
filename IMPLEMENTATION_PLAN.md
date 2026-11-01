@@ -353,10 +353,11 @@ npm run staff -- ceo someone@aguda.org.il
 bash /home/opc/aguda/app/deploy/server.sh staff manager someone@aguda.org.il הר\ הצופים   # on the server
 ```
 
-**Request 34: 5 wrong IDs in a row remove the person.** Each desk search that finds no
-student adds one to `failed_lookups`; a search that finds a student resets it; an empty
-search does not count. The fifth in a row deletes the row, whatever the role, a ceo too,
-in one transaction, so 2 searches at the same moment cannot both read the old count. The
+**Requests 34 and 58: 10 wrong IDs in total remove the person.** Each desk search that
+finds no student adds one to `failed_lookups`; a search that finds a student changes
+nothing, so the count never resets; an empty search does not count. The tenth deletes the
+row, in one transaction, so 2 searches at the same moment cannot both read the old count.
+A ceo from the fixed list (request 56) is never counted or removed. The
 session ends at once. After each wrong ID the desk shows how many tries remain.
 
 **Request 35: the alert is on the ceo's manager page, not in email.** The same
@@ -375,7 +376,7 @@ Which manager added a worker is not recorded (§13).
 |---|---|---|
 | `id` | boolean, primary key, always `true` | Exactly one row |
 | `extra_questions` | boolean, default `true` | Request 33. Whether students see the survey's extra questions |
-| `staff_alerts` | jsonb, default `'[]'` | Request 35. Staff removed after 5 wrong IDs, as `{at, email, role}`, until a ceo clears them |
+| `staff_alerts` | jsonb, default `'[]'` | Request 35. Staff removed after 10 wrong IDs (request 58), as `{at, email, role}`, until a ceo clears them |
 
 A ceo switches `extra_questions` on the manager page. When it is off, the server removes
 the extra questions from the survey before it renders or checks it, so a student sees no
@@ -839,6 +840,9 @@ document is a wish list, and a section in it is not a request.
 | 55 | Sub-campuses of עין כרם with their own gift stock: אסף הרופא and קפלן (by track code), and ריפוי בעיסוק (by faculty). Their students keep the עין כרם logo and staff |
 | 56 | The מנכ"לים are a fixed list (`CEO_EMAILS` in `.env`, not in git). Nobody adds or removes a מנכ"ל, on the website or the command line, and the 5-wrong-IDs rule does not remove one |
 | 57 | A student with several campuses picks, after the survey, the campus to collect the gift at (changeable until a gift is selected); its desk and stock serve them. A מנכ"ל downloads the multi-campus students with a gift: campuses, pickup campus, gift, and receipt |
+| 58 | The lockout is 10 wrong IDs in total, and a correct ID in between does not reset the count |
+| 59 | A מנכ"ל can reset every gift selection that was not handed over; the units return to their stock |
+| 60 | Above the gifts: "שים לב שבחירת המתנה תקפה רק ליום חלוקתה." |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

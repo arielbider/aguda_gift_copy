@@ -7,8 +7,8 @@ import multipart from "@fastify/multipart";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { decide, type Domains, type Door, findStudentByEmail, type GoogleLogin, googleLogin } from "./auth.ts";
 import { pool } from "./db.ts";
-import { markTaken, resetStudent, selectGift, unmarkTaken } from "./gifts.ts";
-import { confirmPage, demoBanner, esc, isFemale, lapsedText, loginPage, ltr, type ManagerDone, type ManagerError, managerPage, noSelectionText, receivedConfirmPage, resetConfirmPage, selectionsPage, studentUpdatesPage, unmarkConfirmPage, studentErrorText, type Notice, type RefusalReason, type StaffRefusal, staffLoginPage, staffPage, type StudentError, type StudentRefusal, studentPage, surveyPage, T, when } from "./pages.ts";
+import { chooseCampus, markTaken, resetStudent, selectGift, unmarkTaken } from "./gifts.ts";
+import { campusChoicePage, confirmPage, demoBanner, esc, isFemale, lapsedText, loginPage, ltr, type ManagerDone, type ManagerError, managerPage, noSelectionText, receivedConfirmPage, resetConfirmPage, selectionsPage, studentUpdatesPage, unmarkConfirmPage, studentErrorText, type Notice, type RefusalReason, type StaffRefusal, staffLoginPage, staffPage, type StudentError, type StudentRefusal, studentPage, surveyPage, T, when } from "./pages.ts";
 import { findStudent, listGifts, listSelections, listUpdates, staffStats, type StudentView } from "./queries.ts";
 import { startSyncSchedule } from "./schedule.ts";
 import { type Actor, setCeos, addStaff, listStaff, MAX_FAILED_LOOKUPS, RANK, recordLookup, removeStaff, type Role, roleOf, setStock, staffOf } from "./staff.ts";
@@ -324,6 +324,10 @@ export async function buildApp(options: AppOptions) {
       }
       // Request 22: member or not, the survey comes first.
       if (!s.survey_submitted) return html(reply, surveyPage(s, survey));
+      // Request 57: with several campuses and no choice yet, the campus comes next.
+      if (s.campuses.length > 1 && !s.chosen_campus && s.gift_id === null && s.member === true) {
+        return html(reply, campusChoicePage(s));
+      }
 
       const { saved, error, surveyed, received } = request.query;
       let message: Notice | undefined;
@@ -374,6 +378,23 @@ export async function buildApp(options: AppOptions) {
     return reply.redirect(result.ok ? "/student?received=1" : "/student");
   });
 
+  // Request 57: pick, or change, the campus to collect the gift at, until a gift is selected.
+  app.get("/student/campus", { preHandler: requireStudent }, async (request, reply) => {
+    const s = await findStudent(studentId(request));
+    if (!s || !s.survey_submitted || s.campuses.length < 2 || s.gift_id !== null) return reply.redirect("/student");
+    return html(reply, campusChoicePage(s));
+  });
+
+  app.post<{ Body: { campus?: string } }>("/student/campus", { preHandler: requireStudent }, async (request, reply) => {
+    const campus = request.body?.campus;
+    if (!campus) {
+      const s = await findStudent(studentId(request));
+      return s ? html(reply, campusChoicePage(s, true)) : reply.redirect("/");
+    }
+    await chooseCampus(studentId(request), campus);
+    return reply.redirect("/student");
+  });
+
   app.post<{ Body: Record<string, unknown> }>(
     "/student/survey",
     { preHandler: requireStudent },
@@ -409,7 +430,7 @@ export async function buildApp(options: AppOptions) {
    */
   const otherCampus = (request: FastifyRequest, s: StudentView): Notice | null => {
     const mine = scope(request);
-    const theirs = s.true_campus;
+    const theirs = s.pickup_campus; // request 57: the campus where the student collects
     if (mine === null || theirs === mine) return null;
     if (!theirs) return { kind: "error", text: T.staff.noStudentCampus };
     return { kind: "warn", text: `${isFemale(s.gender) ? T.staff.otherCampusFemale : T.staff.otherCampus} ${esc(theirs)}.` };

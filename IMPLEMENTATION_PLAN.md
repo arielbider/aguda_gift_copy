@@ -838,6 +838,7 @@ document is a wish list, and a section in it is not a request.
 | 54 | A מנכ"ל uploads an updated student list at `/manager/students`: a preview of the changes first, then apply. The page lists every update with its date and counts (new students, removed students) |
 | 55 | Sub-campuses of עין כרם with their own gift stock: אסף הרופא and קפלן (by track code), and ריפוי בעיסוק (by faculty). Their students keep the עין כרם logo and staff |
 | 56 | The מנכ"לים are a fixed list (`CEO_EMAILS` in `.env`, not in git). Nobody adds or removes a מנכ"ל, on the website or the command line, and the 5-wrong-IDs rule does not remove one |
+| 57 | A student with several campuses picks, after the survey, the campus to collect the gift at (changeable until a gift is selected); its desk and stock serve them. A מנכ"ל downloads the multi-campus students with a gift: campuses, pickup campus, gift, and receipt |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

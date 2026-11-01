@@ -15,6 +15,8 @@ export const EXPORTS = {
   students: "SELECT * FROM students ORDER BY national_id",
   gifts: "SELECT * FROM gifts ORDER BY id",
   staff: "SELECT * FROM staff ORDER BY email",
+  // Request 57: students with several campuses who selected a gift (view in 017).
+  multi_campus: "SELECT * FROM multi_campus_gifts ORDER BY pickup_campus, last_name, first_name",
 } as const;
 export type ExportName = keyof typeof EXPORTS;
 

@@ -94,14 +94,15 @@ export function countedFaculties(records: FacultyFields[]): string[] {
 }
 
 /**
- * Request 55: the sub-campus of a student whose true campus has sub-campuses. The first
+ * Request 55: the sub-campus of a student who has the sub-campus's parent among their
+ * campuses (request 57: they may collect there even if it is not their first). The first
  * counted record, in university order, with a listed track code decides; else a listed
- * faculty. Null when none matches, or when the true campus is another campus.
+ * faculty. Null when none matches. stock_campus uses it only when they collect at the parent.
  */
-export function subCampusOf(rs: (FacultyFields & { roadMaps?: unknown })[], trueCampus: string | undefined): string | null {
+export function subCampusOf(rs: (FacultyFields & { roadMaps?: unknown })[], campuses: string[]): string | null {
   const counted = countedRecords(rs);
   const subs = (Object.entries(SUB_CAMPUSES) as [string, { parent: string; tracks?: readonly string[]; faculty?: string }][])
-    .filter(([, sub]) => sub.parent === trueCampus);
+    .filter(([, sub]) => campuses.includes(sub.parent));
   for (const r of counted) {
     const codes = (Array.isArray(r.roadMaps) ? r.roadMaps : []).map((m) => text((m as { roadMapCode?: unknown }).roadMapCode));
     const byTrack = subs.find(([, sub]) => sub.tracks?.some((t) => codes.includes(t)));
@@ -162,7 +163,7 @@ export function parseUniversity(records: UniversityRecord[], facultyCampus: Facu
       phone: clean(r.mobile),
       special_population: clean(r.specialPopulationsList),
       campuses: campusesOf(rs, facultyCampus),
-      sub_campus: subCampusOf(rs, campusesOf(rs, facultyCampus)[0]),
+      sub_campus: subCampusOf(rs, campusesOf(rs, facultyCampus)),
       // Sorted, so the same records in another order are not a change.
       programs: rs.map(program).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
     };
@@ -231,10 +232,10 @@ if (import.meta.main) {
   const { pool } = await import("./db.ts");
   const { syncStudents } = await import("./sync.ts");
   if (process.argv[2] === "--recompute-sub-campus") {
-    const rows = (await pool.query("SELECT national_id, true_campus, programs, sub_campus FROM students")).rows;
+    const rows = (await pool.query("SELECT national_id, campuses, programs, sub_campus FROM students")).rows;
     let changed = 0;
     for (const r of rows) {
-      const sub = subCampusOf(r.programs, r.true_campus ?? undefined);
+      const sub = subCampusOf(r.programs, r.campuses);
       if (sub !== r.sub_campus) {
         await pool.query("UPDATE students SET sub_campus = $2 WHERE national_id = $1", [r.national_id, sub]);
         changed++;

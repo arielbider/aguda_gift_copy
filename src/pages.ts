@@ -73,6 +73,19 @@ export const T = {
     back: "חזור",
     backFemale: "חזרי",
     yourGift: "המתנה שלך",
+    /** Request 57: a student with several campuses picks where to collect the gift. */
+    chooseCampusTitle: "בחירת קמפוס",
+    chooseCampus: "אתה לומד ביותר מקמפוס אחד. באיזה קמפוס תרצה לקבל את המתנה?",
+    chooseCampusFemale: "את לומדת ביותר מקמפוס אחד. באיזה קמפוס תרצי לקבל את המתנה?",
+    chooseCampusHint: "תוכל לשנות את הקמפוס עד שתבחר מתנה.",
+    chooseCampusHintFemale: "תוכלי לשנות את הקמפוס עד שתבחרי מתנה.",
+    chooseCampusMissing: "בחר קמפוס.",
+    chooseCampusMissingFemale: "בחרי קמפוס.",
+    continue: "המשך",
+    continueFemale: "המשיכי",
+    pickupCampus: "הקמפוס לקבלת המתנה:",
+    changeCampus: "שנה את הקמפוס",
+    changeCampusFemale: "שני את הקמפוס",
     /** Request 48: a note after the selection. The app itself keeps the selection (request 7). */
     reservedToday: "המתנה שמורה עבורך רק להיום.",
     collectHint: "אסוף את המתנה בעמדת חלוקה של האגודה, והבא תעודת סטודנט.",
@@ -97,12 +110,14 @@ export const T = {
       unknown_gift: "לא מצאנו את המתנה.",
       unknown_student: "לא מצאנו אותך ברשימת האוניברסיטה.",
       survey_missing: "ענה על הסקר לפני בחירת מתנה.",
+      campus_missing: "בחר קמפוס לפני בחירת מתנה.",
       no_campus: "לא מצאנו את הקמפוס שלך ברשימת האוניברסיטה. פנה למשרד האגודה.",
     },
     /** The feminine form of any error above whose wording changes for a woman. */
     errorsFemale: {
       sold_out: "המתנה שבחרת אזלה הרגע. בחרי מתנה אחרת.",
       survey_missing: "עני על הסקר לפני בחירת מתנה.",
+      campus_missing: "בחרי קמפוס לפני בחירת מתנה.",
       no_campus: "לא מצאנו את הקמפוס שלך ברשימת האוניברסיטה. פני למשרד האגודה.",
     } as Partial<Record<string, string>>,
   },
@@ -250,7 +265,10 @@ export const T = {
     /** Request 29: the ceo's downloads, one CSV file per table. */
     export: "הורדת הנתונים",
     exportHint: "קובץ CSV לכל טבלה. הקבצים כוללים פרטים אישיים של סטודנטים: שמור אותם במקום מוגן, ומחק אותם כשסיימת.",
-    exportTables: { students: "הורד את טבלת הסטודנטים", gifts: "הורד את טבלת המתנות", staff: "הורד את טבלת הצוות" },
+    exportTables: {
+      students: "הורד את טבלת הסטודנטים", gifts: "הורד את טבלת המתנות", staff: "הורד את טבלת הצוות",
+      multi_campus: "הורד את מתנות הסטודנטים מכמה קמפוסים",
+    },
     done: {
       added_worker: "הוספנו את העובד.",
       added_manager: "הוספנו את המנהל.",
@@ -529,7 +547,7 @@ const notice = (n?: Notice) => (n ? `<p class="${n.kind}">${n.text}</p>` : "");
 
 export function studentPage(s: StudentView, gifts: GiftView[], message?: Notice): string {
   const f = isFemale(s.gender);
-  const head = `<div class="bar">${logo(s.true_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
+  const head = `<div class="bar">${logo(s.pickup_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
 <p>${ltr(s.national_id)} · <strong>${memberLabel(s.member, s.gender)}</strong></p>
 ${notice(message)}`;
 
@@ -565,6 +583,11 @@ ${registerImage(s.gender)}`);
   // Request 41: a member with no campus has no stock to choose from.
   if (!s.true_campus) return layout(`${head}<p class="warn">${studentErrorText("no_campus", s.gender)}</p>`);
 
+  // Request 57: with several campuses, the campus to collect at, and a link to change it.
+  const pickup = s.campuses.length > 1
+    ? `<p>${T.student.pickupCampus} <strong>${esc(s.pickup_campus)}</strong> · <a href="/student/campus">${f ? T.student.changeCampusFemale : T.student.changeCampus}</a></p>`
+    : "";
+
   // A member with no selection: the gifts. A sold-out gift cannot be chosen (request 19).
   const cards = gifts
     .map((g) =>
@@ -576,9 +599,28 @@ ${registerImage(s.gender)}`);
     )
     .join("\n");
   return layout(`${head}
+${pickup}
 <h2>${T.student.choose}</h2>
 <p class="hint">${f ? T.student.chooseHintFemale : T.student.chooseHint}</p>
 <div class="gifts">${cards}</div>`);
+}
+
+/**
+ * Request 57: a student with several campuses picks where to collect the gift, after the
+ * survey and before the gifts. The current choice is preselected.
+ */
+export function campusChoicePage(s: StudentView, missing = false): string {
+  const f = isFemale(s.gender);
+  const options = s.campuses
+    .map((c) => `<label class="option"><input type="radio" name="campus" value="${esc(c)}"${c === s.chosen_campus ? " checked" : ""}> ${esc(c)}</label>`)
+    .join("");
+  return layout(`<div class="bar">${logo(s.pickup_campus)}<h1>${T.student.chooseCampusTitle}</h1>${logoutForm(s.gender)}</div>
+${missing ? `<p class="error">${f ? T.student.chooseCampusMissingFemale : T.student.chooseCampusMissing}</p>` : ""}
+<form method="post" action="/student/campus">
+<fieldset class="question"><legend>${f ? T.student.chooseCampusFemale : T.student.chooseCampus}</legend>${options}</fieldset>
+<p class="hint">${f ? T.student.chooseCampusHintFemale : T.student.chooseCampusHint}</p>
+<button class="button">${f ? T.student.continueFemale : T.student.continue}</button>
+</form>`);
 }
 
 /**
@@ -656,7 +698,7 @@ export function surveyPage(
 
   const fields = survey.questions.map(field).join("\n");
 
-  return layout(`<div class="bar">${logo(s.true_campus)}<h1>${T.survey.title}</h1>${logoutForm(s.gender)}</div>
+  return layout(`<div class="bar">${logo(s.pickup_campus)}<h1>${T.survey.title}</h1>${logoutForm(s.gender)}</div>
 <p>${female ? T.survey.introFemale : T.survey.intro}</p>
 <form method="post" action="/student/survey">
 ${fields}

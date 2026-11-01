@@ -156,6 +156,85 @@ describe("sub-campuses (request 55)", () => {
   });
 });
 
+describe("students with several campuses pick where to collect (request 57)", () => {
+  const setTwo = (id: string, campuses: string[], sub: string | null = null) =>
+    pool.query("UPDATE students SET campuses = $2, sub_campus = $3 WHERE national_id = $1", [id, campuses, sub]);
+
+  test("after the survey they pick a campus, and the gifts come from its stock", async () => {
+    await setTwo(ids[0], ["הר הצופים", "רחובות"]);
+    const cookies = await login({ kind: "student", national_id: ids[0] });
+    const choice = (await app.inject({ url: "/student", cookies })).body;
+    assert.match(choice, /באיזה קמפוס תרצה לקבל את המתנה/);
+    assert.match(choice, /value="הר הצופים">.*value="רחובות">/s);
+    assert.deepEqual(await selectGift(ids[0], 1), { ok: false, reason: "campus_missing" });
+
+    const none = await app.inject({ method: "POST", url: "/student/campus", cookies, ...form({}) });
+    assert.match(none.body, /בחר קמפוס\./);
+    await app.inject({ method: "POST", url: "/student/campus", cookies, ...form({ campus: "רחובות" }) });
+    const s = await student(ids[0]);
+    assert.equal(s.pickup_campus, "רחובות");
+    assert.equal(s.stock_campus, "רחובות");
+    const page = (await app.inject({ url: "/student", cookies })).body;
+    assert.match(page, /הקמפוס לקבלת המתנה: <strong>רחובות<\/strong> · <a href="\/student\/campus">שנה את הקמפוס/);
+    assert.equal((await selectGift(ids[0], 1)).ok, true);
+    assert.equal((await gift(1, "רחובות")).requested_count, 1);
+    assert.equal((await gift(1, "הר הצופים")).requested_count, 0);
+  });
+
+  test("the campus must be one of theirs, and is fixed once a gift is selected", async () => {
+    await setTwo(ids[0], ["הר הצופים", "רחובות"]);
+    const cookies = await login({ kind: "student", national_id: ids[0] });
+    await app.inject({ method: "POST", url: "/student/campus", cookies, ...form({ campus: "גבעת רם" }) });
+    assert.equal((await student(ids[0])).chosen_campus, null, "not one of theirs");
+    await app.inject({ method: "POST", url: "/student/campus", cookies, ...form({ campus: "רחובות" }) });
+    await app.inject({ method: "POST", url: "/student/campus", cookies, ...form({ campus: "הר הצופים" }) });
+    assert.equal((await student(ids[0])).chosen_campus, "הר הצופים", "changed before a selection");
+    await selectGift(ids[0], 2);
+    await app.inject({ method: "POST", url: "/student/campus", cookies, ...form({ campus: "רחובות" }) });
+    assert.equal((await student(ids[0])).chosen_campus, "הר הצופים", "fixed after the selection");
+    assert.equal((await app.inject({ url: "/student/campus", cookies })).headers.location, "/student");
+  });
+
+  test("a student with one campus never sees the choice", async () => {
+    const page = (await app.inject({ url: "/student", cookies: await login({ kind: "student", national_id: ids[1] }) })).body;
+    assert.doesNotMatch(page, /באיזה קמפוס/);
+    assert.doesNotMatch(page, /הקמפוס לקבלת המתנה/);
+  });
+
+  test("the desk of the picked campus serves the student; the first campus's desk does not", async () => {
+    await setTwo(ids[0], ["הר הצופים", "גבעת רם"]);
+    await pool.query("UPDATE students SET chosen_campus = 'גבעת רם' WHERE national_id = $1", [ids[0]]);
+    await selectGift(ids[0], 1);
+    assert.match((await lookup(await asStaff("givat@aguda.org.il"), ids[0])).body, /action="\/staff\/take"/);
+    assert.match((await lookup(await asStaff("har@aguda.org.il"), ids[0])).body, /לעמדת החלוקה בקמפוס גבעת רם/);
+  });
+
+  test("a עין כרם sub-campus applies only when the student collects at עין כרם", async () => {
+    await setTwo(ids[0], ["גבעת רם", "עין כרם"], "קפלן");
+    assert.equal((await student(ids[0])).stock_campus, "גבעת רם", "no choice yet: the first campus");
+    await pool.query("UPDATE students SET chosen_campus = 'עין כרם' WHERE national_id = $1", [ids[0]]);
+    assert.equal((await student(ids[0])).stock_campus, "קפלן");
+    await pool.query("UPDATE students SET chosen_campus = 'גבעת רם' WHERE national_id = $1", [ids[0]]);
+    assert.equal((await student(ids[0])).stock_campus, "גבעת רם");
+  });
+
+  test("the ceo downloads the multi-campus gifts: campuses, pickup campus, gift, and receipt", async () => {
+    await setTwo(ids[0], ["הר הצופים", "רחובות"]);
+    await pool.query("UPDATE students SET chosen_campus = 'רחובות' WHERE national_id = $1", [ids[0]]);
+    await selectGift(ids[0], 3);
+    await markTaken(ids[0]);
+    await selectGift(ids[1], 2); // one campus: not in the report
+    const ceo = await asStaff("chief@aguda.org.il");
+    assert.match((await app.inject({ url: "/manager", cookies: ceo })).body, /href="\/manager\/export\/multi_campus.csv"/);
+    const csv = (await app.inject({ url: "/manager/export/multi_campus.csv", cookies: ceo })).body;
+    assert.ok(csv.startsWith("\uFEFF"), "the UTF-8 marker for Excel");
+    const lines = csv.slice(1).trimEnd().split("\r\n");
+    assert.equal(lines[0], "national_id,first_name,last_name,campuses,pickup_campus,stock_campus,gift,received_at");
+    assert.equal(lines.length, 2, "only the multi-campus student");
+    assert.match(lines[1], new RegExp(`^${ids[0]},.*,הר הצופים \\+ רחובות,רחובות,רחובות,.+,\\d{4}-`));
+  });
+});
+
 describe("the desk sees its own campus only", () => {
   test("a worker of another campus learns only the student's campus", async () => {
     await selectGift(ids[0], 1);

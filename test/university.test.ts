@@ -115,9 +115,11 @@ test("sub-campuses of עין כרם: by track code, or by faculty (request 55)",
   const ot = record({ identityNumber: 4, hujiEmail: "o4@mail.huji.ac.il", faculty: 'ביה"ס לריפוי בעיסוק', motherFacultyName: 'ביה"ס לריפוי בעיסוק' });
   assert.equal(of([ot]).sub_campus, "ריפוי בעיסוק");
   assert.deepEqual(of([ot]).campuses, ["עין כרם"], "the campus stays עין כרם");
-  // A listed track counts only when the true campus is עין כרם.
+  // Request 57: known whenever עין כרם is one of the campuses, even if not the first; it
+  // applies only when the student collects at עין כרם. A student without עין כרם has none.
   const mathFirst = [record({ identityNumber: 5, hujiEmail: "m5@mail.huji.ac.il" }), { ...nursing(5, "606-5611"), hujiEmail: "m5@mail.huji.ac.il" }];
-  assert.equal(of(mathFirst).sub_campus, null);
+  assert.equal(of(mathFirst).sub_campus, "אסף הרופא");
+  assert.equal(of([record({ identityNumber: 6, hujiEmail: "m6@mail.huji.ac.il" })]).sub_campus, null);
 });
 
 test("the CSV map is read with quotes, a BOM, and Windows line ends", async () => {

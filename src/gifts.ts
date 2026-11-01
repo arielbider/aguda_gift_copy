@@ -4,7 +4,7 @@ export type SelectResult =
   | { ok: true; giftId: number }
   | {
       ok: false;
-      reason: "unknown_student" | "not_member" | "already_selected" | "unknown_gift" | "sold_out" | "survey_missing" | "no_campus";
+      reason: "unknown_student" | "not_member" | "already_selected" | "unknown_gift" | "sold_out" | "survey_missing" | "no_campus" | "campus_missing";
     };
 
 /**
@@ -30,12 +30,13 @@ export async function selectGift(nationalId: string, giftId: number): Promise<Se
       `UPDATE students SET gift_id = $2
         WHERE national_id = $1 AND member IS TRUE AND gift_id IS NULL AND survey IS NOT NULL
           AND stock_campus IS NOT NULL
+          AND (cardinality(campuses) <= 1 OR chosen_campus IS NOT NULL)
         RETURNING stock_campus`,
       [nationalId, giftId],
     );
     if (chose.rowCount === 0) {
       const row = await db.query(
-        "SELECT member, gift_id, survey IS NOT NULL AS surveyed, stock_campus FROM students WHERE national_id = $1",
+        "SELECT member, gift_id, survey IS NOT NULL AS surveyed, stock_campus, cardinality(campuses) > 1 AND chosen_campus IS NULL AS unchosen FROM students WHERE national_id = $1",
         [nationalId],
       );
       const s = row.rows[0];
@@ -47,7 +48,9 @@ export async function selectGift(nationalId: string, giftId: number): Promise<Se
             ? "survey_missing"
             : s.member !== true
               ? "not_member"
-              : "no_campus";
+              : s.unchosen
+                ? "campus_missing"
+                : "no_campus";
       throw new Rollback<SelectResult>({ ok: false, reason });
     }
 
@@ -63,6 +66,25 @@ export async function selectGift(nationalId: string, giftId: number): Promise<Se
 
     return { ok: true, giftId };
   });
+}
+
+export type ChooseCampusResult = { ok: true } | { ok: false; reason: "not_theirs" | "selected" | "unknown_student" };
+
+/**
+ * Request 57. A student with several campuses picks where to collect the gift: one of
+ * their own campuses, and only while no gift is selected, so a selection never moves to
+ * another campus's stock. The rules sit in the WHERE clause.
+ */
+export async function chooseCampus(nationalId: string, campus: string): Promise<ChooseCampusResult> {
+  const r = await pool.query(
+    `UPDATE students SET chosen_campus = $2
+      WHERE national_id = $1 AND gift_id IS NULL AND $2 = ANY(campuses) AND cardinality(campuses) > 1`,
+    [nationalId, campus],
+  );
+  if (r.rowCount) return { ok: true };
+  const s = (await pool.query("SELECT gift_id, campuses FROM students WHERE national_id = $1", [nationalId])).rows[0];
+  if (!s) return { ok: false, reason: "unknown_student" };
+  return { ok: false, reason: s.gift_id !== null ? "selected" : "not_theirs" };
 }
 
 export type TakeResult =

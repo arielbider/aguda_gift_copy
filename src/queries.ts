@@ -13,6 +13,12 @@ export type StudentView = {
    * this; the full list is not read here, so nothing can use it by mistake (request 43).
    */
   true_campus: string | null;
+  /** Request 57: all the student's campuses; with several, the student picks one. */
+  campuses: string[];
+  /** Request 57: the campus the student picked, or null. */
+  chosen_campus: string | null;
+  /** Request 57: where the student collects: the picked campus, or else true_campus. */
+  pickup_campus: string | null;
   /** Request 55: the stock the student selects from: their sub-campus, or else true_campus. */
   stock_campus: string | null;
   member: boolean | null;
@@ -27,7 +33,8 @@ export type StudentView = {
 
 export async function findStudent(nationalId: string): Promise<StudentView | null> {
   const r = await pool.query(
-    `SELECT s.national_id, s.first_name, s.last_name, s.gender, s.true_campus, s.stock_campus, s.member,
+    `SELECT s.national_id, s.first_name, s.last_name, s.gender, s.true_campus, s.campuses, s.chosen_campus,
+            s.pickup_campus, s.stock_campus, s.member,
             s.member_changed_at, s.gift_id, g.name AS gift_name, s.gift_taken_at,
             s.interactions, s.survey IS NOT NULL AS survey_submitted
        FROM students s LEFT JOIN gifts g ON g.id = s.gift_id

@@ -178,6 +178,8 @@ employee types, so both spellings find the student.
 
 **Campuses come from the owner's faculty map (request 38).** `faculty-campus.csv` at the
 repository root maps each faculty to one campus: גבעת רם, הר הצופים, עין כרם, or רחובות.
+Request 65: a faculty can map to several, separated by ";", the main one first (ריפוי
+בעיסוק: עין כרם;הר הצופים. רפואת שיניים: עין כרם;גבעת רם).
 Which faculties count (request 39): the mother faculty (`motherFacultyName`) of each record
 that has one; only if no record of the student has one, the `faculty` of every record. A
 student's campuses are the campuses of those faculties, so a student with 2 mother
@@ -847,6 +849,7 @@ document is a wish list, and a section in it is not a request.
 | 62 | "לא" to the dorms question asks "באיזו שכונה אתה גר?" with a required text box. Survey version 5 |
 | 63 | The disability category is "עם מוגבלות", with its own optional text box (gray text "רשום איזו"). Survey version 6 |
 | 64 | The "received" confirm page shows the campus in large letters (with the sub-campus, if any) |
+| 65 | ריפוי בעיסוק students belong to עין כרם and הר הצופים; רפואת שיניים students to עין כרם and גבעת רם. They pick where to collect. `faculty-campus.csv` allows several campuses, separated by ";". `--recompute-sub-campus` sets the campuses too |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

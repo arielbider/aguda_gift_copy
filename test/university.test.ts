@@ -35,8 +35,8 @@ const record = (over: Partial<UniversityRecord> = {}): UniversityRecord => ({
 });
 
 const MAP: FacultyCampus = new Map([
-  ["פקולטה למתמטיקה ולמדעי הטבע", "גבעת רם"],
-  ['ביה"ס לתלמידי חו"ל', "הר הצופים"],
+  ["פקולטה למתמטיקה ולמדעי הטבע", ["גבעת רם"]],
+  ['ביה"ס לתלמידי חו"ל', ["הר הצופים"]],
 ]);
 
 test("one record becomes one student, cleaned, with the campus of its faculty", () => {
@@ -101,8 +101,8 @@ test("an unknown faculty gives no campus, and is reported", () => {
 
 test("sub-campuses of עין כרם: by track code, or by faculty (request 55)", () => {
   const map: FacultyCampus = new Map([
-    ['ביה"ס לאחיות', "עין כרם"], ['ביה"ס לריפוי בעיסוק', "עין כרם"], ["ביה\"ס לרפואה", "עין כרם"],
-    ["פקולטה למתמטיקה ולמדעי הטבע", "גבעת רם"],
+    ['ביה"ס לאחיות', ["עין כרם"]], ['ביה"ס לריפוי בעיסוק', ["עין כרם", "הר הצופים"]], ["ביה\"ס לרפואה", ["עין כרם"]],
+    ["פקולטה למתמטיקה ולמדעי הטבע", ["גבעת רם"]],
   ]);
   const nursing = (id: number, code: string) => record({
     identityNumber: id, hujiEmail: `n${id}@mail.huji.ac.il`, faculty: 'ביה"ס לאחיות', motherFacultyName: 'ביה"ס לאחיות',
@@ -114,7 +114,7 @@ test("sub-campuses of עין כרם: by track code, or by faculty (request 55)",
   assert.equal(of([nursing(3, "606-5606")]).sub_campus, null, "הדסה stays עין כרם");
   const ot = record({ identityNumber: 4, hujiEmail: "o4@mail.huji.ac.il", faculty: 'ביה"ס לריפוי בעיסוק', motherFacultyName: 'ביה"ס לריפוי בעיסוק' });
   assert.equal(of([ot]).sub_campus, "ריפוי בעיסוק");
-  assert.deepEqual(of([ot]).campuses, ["עין כרם"], "the campus stays עין כרם");
+  assert.deepEqual(of([ot]).campuses, ["עין כרם", "הר הצופים"], "עין כרם first, and הר הצופים too (request 65)");
   // Request 57: known whenever עין כרם is one of the campuses, even if not the first; it
   // applies only when the student collects at עין כרם. A student without עין כרם has none.
   const mathFirst = [record({ identityNumber: 5, hujiEmail: "m5@mail.huji.ac.il" }), { ...nursing(5, "606-5611"), hujiEmail: "m5@mail.huji.ac.il" }];
@@ -124,15 +124,18 @@ test("sub-campuses of עין כרם: by track code, or by faculty (request 55)",
 
 test("the CSV map is read with quotes, a BOM, and Windows line ends", async () => {
   const path = join(tmpdir(), `faculty-campus-${process.pid}.csv`);
-  writeFileSync(path, '\uFEFFפקולטה,קמפוס\r\n"ביה""ס לרפואה",עין כרם\r\n"פקולטה לחקלאות, מזון",רחובות\r\nריקה,\r\n');
+  writeFileSync(path, '\uFEFFפקולטה,קמפוס\r\n"ביה""ס לרפואה",עין כרם\r\n"פקולטה לחקלאות, מזון",רחובות\r\nשיניים,עין כרם; גבעת רם\r\nריקה,\r\n');
   const map = await loadFacultyCampus(path);
-  assert.deepEqual([...map], [['ביה"ס לרפואה', "עין כרם"], ["פקולטה לחקלאות, מזון", "רחובות"]]);
+  assert.deepEqual([...map], [['ביה"ס לרפואה', ["עין כרם"]], ["פקולטה לחקלאות, מזון", ["רחובות"]], ["שיניים", ["עין כרם", "גבעת רם"]]]);
 });
 
 test("the real faculty-campus.csv maps every faculty to one of the four campuses", async () => {
   const map = await loadFacultyCampus();
   assert.ok(map.size >= 20);
-  for (const campus of map.values()) assert.ok(["גבעת רם", "הר הצופים", "עין כרם", "רחובות"].includes(campus), campus);
+  for (const campus of [...map.values()].flat()) assert.ok(["גבעת רם", "הר הצופים", "עין כרם", "רחובות"].includes(campus), campus);
+  // Request 65: these two faculties belong to two campuses, so their students pick one.
+  assert.deepEqual(map.get('ביה"ס לריפוי בעיסוק'), ["עין כרם", "הר הצופים"]);
+  assert.deepEqual(map.get("פקולטה לרפואת שיניים"), ["עין כרם", "גבעת רם"]);
 });
 
 test("records of one ID with different personal details refuse the whole response", () => {

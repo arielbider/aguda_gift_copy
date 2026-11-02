@@ -407,3 +407,30 @@ describe("staff and stock per campus", () => {
     assert.equal((await gift(1, "רחובות")).starting_inventory, 70);
   });
 });
+
+describe("faculties of two campuses (request 65)", () => {
+  test("a recompute adds the second campus; the student then picks, and the pick sets the stock", async () => {
+    const ot = { motherFacultyName: 'ביה"ס לריפוי בעיסוק', faculty: 'ביה"ס לריפוי בעיסוק', roadMaps: [] };
+    const dental = { motherFacultyName: "פקולטה לרפואת שיניים", faculty: "פקולטה לרפואת שיניים", roadMaps: [] };
+    await pool.query("UPDATE students SET campuses = '{עין כרם}', sub_campus = 'ריפוי בעיסוק', programs = $2 WHERE national_id = $1", [ids[0], JSON.stringify([ot])]);
+    await pool.query("UPDATE students SET campuses = '{עין כרם}', programs = $2 WHERE national_id = $1", [ids[1], JSON.stringify([dental])]);
+    await pool.query("UPDATE students SET campuses = '{רחובות}', chosen_campus = 'רחובות' WHERE national_id = $1", [ids[2]]);
+    const { recomputeCampuses } = await import("../src/university.ts");
+    await recomputeCampuses();
+    assert.deepEqual((await student(ids[0])).campuses, ["עין כרם", "הר הצופים"]);
+    assert.equal((await student(ids[0])).sub_campus, "ריפוי בעיסוק");
+    assert.deepEqual((await student(ids[1])).campuses, ["עין כרם", "גבעת רם"]);
+    assert.deepEqual((await student(ids[2])).campuses, ["רחובות"], "no mapped faculty: the campuses stay");
+
+    // ריפוי בעיסוק at הר הצופים takes the הר הצופים stock; at עין כרם, its own sub-campus stock.
+    await pool.query("UPDATE students SET chosen_campus = 'הר הצופים' WHERE national_id = $1", [ids[0]]);
+    assert.equal((await student(ids[0])).stock_campus, "הר הצופים");
+    await pool.query("UPDATE students SET chosen_campus = 'עין כרם' WHERE national_id = $1", [ids[0]]);
+    assert.equal((await student(ids[0])).stock_campus, "ריפוי בעיסוק");
+    // The ceo's multi-campus report lists them once they select.
+    await pool.query("UPDATE students SET chosen_campus = 'גבעת רם' WHERE national_id = $1", [ids[1]]);
+    assert.equal((await selectGift(ids[1], 1)).ok, true);
+    const report = (await pool.query("SELECT campuses, pickup_campus FROM multi_campus_gifts WHERE national_id = $1", [ids[1]])).rows;
+    assert.deepEqual(report, [{ campuses: "עין כרם + גבעת רם", pickup_campus: "גבעת רם" }]);
+  });
+});

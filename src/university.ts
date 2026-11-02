@@ -49,8 +49,11 @@ const personal = (r: UniversityRecord) =>
  * Request 39: which faculties count. The mother faculty (motherFacultyName) of each record
  * that has one. Only when no record of the student has a mother faculty, the faculty of
  * every record instead. A student's campuses are the campuses of those faculties.
+ *
+ * Request 65: a faculty can have several campuses, separated by ";" (first the main one).
+ * Its students then pick where to collect, like any student with several campuses.
  */
-export type FacultyCampus = Map<string, string>;
+export type FacultyCampus = Map<string, string[]>;
 export const FACULTY_CAMPUS_PATH = join(import.meta.dirname, "..", "faculty-campus.csv");
 
 /** Reads the map: a header row, then faculty,campus. Quoted CSV fields are allowed. */
@@ -73,7 +76,8 @@ export async function loadFacultyCampus(path = FACULTY_CAMPUS_PATH): Promise<Fac
   rows[rows.length - 1].push(field);
   const map: FacultyCampus = new Map();
   for (const [faculty = "", campus = ""] of rows.slice(1)) {
-    if (faculty.trim() && campus.trim()) map.set(faculty.trim(), campus.trim());
+    const campuses = campus.split(";").map((c) => c.trim()).filter(Boolean);
+    if (faculty.trim() && campuses.length) map.set(faculty.trim(), campuses);
   }
   return map;
 }
@@ -117,7 +121,7 @@ export function subCampusOf(rs: (FacultyFields & { roadMaps?: unknown })[], camp
  * students.true_campus, is the campus of the student's first counted record.
  */
 const campusesOf = (rs: FacultyFields[], facultyCampus: FacultyCampus) =>
-  [...new Set(countedFaculties(rs).map((f) => facultyCampus.get(f)).filter((c): c is string => !!c))];
+  [...new Set(countedFaculties(rs).flatMap((f) => facultyCampus.get(f) ?? []))];
 
 /** Counted faculties that the map does not know, so they gave no campus. */
 export function unmappedFaculties(students: SourceStudent[], facultyCampus: FacultyCampus): string[] {
@@ -220,6 +224,33 @@ export class UniversityFileSource implements StudentSource {
   }
 }
 
+/**
+ * Request 65: sets every student's campuses and sub-campus again from the stored programs
+ * and faculty-campus.csv. The campuses a student already has keep their order (so
+ * true_campus stays), and new ones go after them. A chosen campus that is no longer one of
+ * them is cleared. Used after an edit of the CSV, with no new list. A student with no
+ * mapped faculty keeps their campuses.
+ */
+export async function recomputeCampuses(map?: FacultyCampus): Promise<{ changed: number; total: number }> {
+  const { pool } = await import("./db.ts");
+  map ??= await loadFacultyCampus();
+  const rows = (await pool.query("SELECT national_id, campuses, programs, sub_campus, chosen_campus FROM students")).rows;
+  let changed = 0;
+  for (const r of rows) {
+    const computed = campusesOf(r.programs ?? [], map);
+    if (!computed.length) continue; // no mapped faculty, nothing to compute from
+    const campuses = [...r.campuses.filter((c: string) => computed.includes(c)), ...computed.filter((c) => !r.campuses.includes(c))];
+    const sub = subCampusOf(r.programs, campuses);
+    const chosen = campuses.includes(r.chosen_campus) ? r.chosen_campus : null;
+    if (sub !== r.sub_campus || chosen !== r.chosen_campus || JSON.stringify(campuses) !== JSON.stringify(r.campuses)) {
+      await pool.query("UPDATE students SET campuses = $2, sub_campus = $3, chosen_campus = $4 WHERE national_id = $1",
+        [r.national_id, campuses, sub, chosen]);
+      changed++;
+    }
+  }
+  return { changed, total: rows.length };
+}
+
 // ---- command line -----------------------------------------------------------------------
 //   npm run load-students -- <response.json>
 // Syncs a saved response, the same as a scheduled sync, then prints the problem students.
@@ -227,21 +258,14 @@ export class UniversityFileSource implements StudentSource {
 // Request 55: sets every student's sub-campus from the programs already stored, with no
 // file. The stored programs are sorted, not in university order; that matters only for a
 // student with tracks of two sub-campuses, and the next sync sets the true order.
+// Request 65: sets the campuses too, from faculty-campus.csv (recomputeCampuses).
 
 if (import.meta.main) {
   const { pool } = await import("./db.ts");
   const { syncStudents } = await import("./sync.ts");
   if (process.argv[2] === "--recompute-sub-campus") {
-    const rows = (await pool.query("SELECT national_id, campuses, programs, sub_campus FROM students")).rows;
-    let changed = 0;
-    for (const r of rows) {
-      const sub = subCampusOf(r.programs, r.campuses);
-      if (sub !== r.sub_campus) {
-        await pool.query("UPDATE students SET sub_campus = $2 WHERE national_id = $1", [r.national_id, sub]);
-        changed++;
-      }
-    }
-    console.error(`sub-campus set for ${changed} of ${rows.length} students`);
+    const { changed, total } = await recomputeCampuses();
+    console.error(`campuses and sub-campus set for ${changed} of ${total} students`);
     await pool.end();
     process.exit(0);
   }

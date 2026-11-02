@@ -418,6 +418,8 @@ function layout(body: string, wide = false, brand = false): string {
   .campus-big { font-size: 2.6rem; font-weight: 800; line-height: 1.15; text-align: center;
                 border: 2px solid var(--green); background: var(--white); padding: 0.75rem; margin-block: 1rem; }
   .campus-big .hint { font-size: 1rem; font-weight: 600; }
+  .campus-name { display: inline-flex; align-items: center; gap: 0.6rem; }
+  .campus-name img { height: 3.2rem; width: auto; flex: none; }
   .button.disabled { background: var(--gray); color: #fff; cursor: default; }
   .button.secondary, .button.secondary:visited { background: transparent; color: var(--green);
                       border: 1.5px solid var(--green); margin-block-start: 0.5rem; }
@@ -744,7 +746,7 @@ export function receivedConfirmPage(s: StudentView): string {
     ? `${esc(s.pickup_campus)} · ${esc(s.stock_campus)}`
     : esc(s.pickup_campus ?? "—");
   return layout(`<h1>${T.student.receivedTitle}</h1>
-<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br>${campus}</p>
+<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${logoOf(s.pickup_campus)}" alt="">${campus}</span></p>
 <p class="big">${esc(s.gift_name)}</p>
 <p class="warn">${f ? T.student.receivedWarnFemale : T.student.receivedWarn}</p>
 <form method="post" action="/student/received">

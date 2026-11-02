@@ -129,7 +129,7 @@ describe("sub-campuses (request 55)", () => {
     const page = (await app.inject({ url: "/student", cookies: await login({ kind: "student", national_id: ids[0] }) })).body;
     assert.match(page, /src="\/img\/ein_karem.jpg"/);
     const confirm = (await app.inject({ url: "/student/received", cookies: await login({ kind: "student", national_id: ids[0] }) })).body;
-    assert.match(confirm, /<br>עין כרם · קפלן<\/p>/, "the sub-campus stock too (request 64)");
+    assert.match(confirm, /<img src="\/img\/ein_karem.jpg" alt="">עין כרם · קפלן<\/span>/, "the sub-campus stock too (request 64)");
     assert.equal((await markTaken(ids[0])).ok, true);
     assert.equal((await gift(2, "קפלן")).given_count, 1);
     assert.deepEqual(await counterDrift(), []);

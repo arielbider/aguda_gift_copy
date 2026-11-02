@@ -195,7 +195,7 @@ describe("student page", () => {
 
     const confirm = await app.inject({ url: "/student/received", cookies });
     assert.match(confirm.body, /action="\/student\/received"/);
-    assert.match(confirm.body, /<p class="campus-big"><span class="hint">קמפוס<\/span><br>הר הצופים<\/p>/, "request 64");
+    assert.match(confirm.body, /<p class="campus-big"><span class="hint">קמפוס<\/span><br><span class="campus-name"><img src="\/img\/mt_scopus.jpg" alt="">הר הצופים<\/span><\/p>/, "request 64");
     assert.equal((await student(ids[0])).gift_taken_at, null, "the confirm page changes nothing");
 
     const post = await app.inject({ method: "POST", url: "/student/received", cookies });

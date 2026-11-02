@@ -286,6 +286,15 @@ describe("the ceo resets every selection not handed over (request 59)", () => {
     const note = page.indexOf("שים לב שבחירת המתנה תקפה רק ליום חלוקתה.");
     assert.ok(note > 0 && note < page.indexOf('class="gifts"'), "above the gifts");
   });
+  test("the login page and the page after a selection show the party picture, linked to the tickets (request 66)", async () => {
+    const ad = '<a class="party" href="https://go.aguda.org.il/2511-tickets" target="_blank" rel="noopener noreferrer"><img src="/img/party.webp" alt="כרטיסים למסיבה"></a>';
+    assert.ok((await app.inject("/")).body.includes(ad), "the login page");
+    const cookies = await login({ kind: "student", national_id: ids[0] });
+    assert.ok(!(await app.inject({ url: "/student", cookies })).body.includes(ad), "not on the gift list");
+    await selectGift(ids[0], 1);
+    assert.ok((await app.inject({ url: "/student", cookies })).body.includes(ad), "after the selection");
+    assert.equal((await app.inject("/img/party.webp")).statusCode, 200);
+  });
 });
 
 describe("the desk sees its own campus only", () => {

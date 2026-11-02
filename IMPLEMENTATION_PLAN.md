@@ -850,6 +850,7 @@ document is a wish list, and a section in it is not a request.
 | 63 | The disability category is "עם מוגבלות", with its own optional text box (gray text "רשום איזו"). Survey version 6 |
 | 64 | The "received" confirm page shows the campus in large letters (with the sub-campus, if any) |
 | 65 | ריפוי בעיסוק students belong to עין כרם and הר הצופים; רפואת שיניים students to עין כרם and גבעת רם. They pick where to collect. `faculty-campus.csv` allows several campuses, separated by ";". `--recompute-sub-campus` sets the campuses too |
+| 66 | The party picture (`img/party.webp`, a smaller copy of `party.png`) links to https://go.aguda.org.il/2511-tickets, on the login page and after a selection |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

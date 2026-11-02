@@ -12,6 +12,8 @@ import { followKey, type Option, type Question, type Survey } from "./survey.ts"
 export const T = {
   title: "מתנות האגודה",
   signIn: "התחבר עם חשבון mail.huji.ac.il",
+  /** Request 66: the party picture, which links to the tickets. */
+  partyAlt: "כרטיסים למסיבה",
   logout: "התנתק",
   logoutFemale: "התנתקי",
   devTitle: "התחברות לפיתוח בלבד",
@@ -414,6 +416,8 @@ function layout(body: string, wide = false, brand = false): string {
                       background: var(--white); }
   .photo { max-width: 16rem; display: block; }
   img.register { width: 100%; height: auto; display: block; }
+  .party { display: block; margin-block: 1rem; }
+  .party img { width: 100%; height: auto; display: block; border-radius: 8px; }
   .big { font-size: 1.5rem; font-weight: 800; margin: 0.3rem 0; }
   .campus-big { font-size: 2.6rem; font-weight: 800; line-height: 1.15; text-align: center;
                 border: 2px solid var(--green); background: var(--white); padding: 0.75rem; margin-block: 1rem; }
@@ -482,6 +486,7 @@ ${notInList ? postLink(null) : ""}
 ${error}
 ${register}
 <a class="button" href="/auth/google">${T.signIn}</a>
+${partyAd()}
 ${dev}`, false, true);
 }
 
@@ -503,6 +508,11 @@ ${error}
 <p><a href="/">${T.studentLink}</a></p>
 ${dev}`, false, true);
 }
+
+/** Request 66: the party ad, on the login page and after a selection. It links to the tickets. */
+const PARTY_TICKETS = "https://go.aguda.org.il/2511-tickets";
+const partyAd = () =>
+  `<a class="party" href="${PARTY_TICKETS}" target="_blank" rel="noopener noreferrer"><img src="/img/party.webp" alt="${T.partyAlt}"></a>`;
 
 /** Request 47: the owner's Instagram post, linked at the top of the non-member page. */
 const NOT_MEMBER_POST = "https://www.instagram.com/p/DecMEG_jLYt/?xtok=MXIzbmdubGYzbms3Nw==";
@@ -580,7 +590,8 @@ ${notice(message)}`;
 <p class="hint">${f ? T.student.chooseHintFemale : T.student.chooseHint}</p>${lapsed}
 <p class="warn">${T.student.reservedToday}</p>
 <p>${f ? T.student.collectHintFemale : T.student.collectHint}</p>
-${s.member === true ? `<a class="button secondary" href="/student/received">${f ? T.student.markReceivedFemale : T.student.markReceived}</a>` : ""}</div>`);
+${s.member === true ? `<a class="button secondary" href="/student/received">${f ? T.student.markReceivedFemale : T.student.markReceived}</a>` : ""}</div>
+${partyAd()}`);
   }
 
   // No selection, and not a member: nothing to choose. A non-member sees how to register

@@ -846,6 +846,7 @@ document is a wish list, and a section in it is not a request.
 | 61 | The student login page has no link to the staff login page; staff open `/staff/login` directly |
 | 62 | "לא" to the dorms question asks "באיזו שכונה אתה גר?" with a required text box. Survey version 5 |
 | 63 | The disability category is "עם מוגבלות", with its own optional text box (gray text "רשום איזו"). Survey version 6 |
+| 64 | The "received" confirm page shows the campus in large letters (with the sub-campus, if any) |
 
 Add a line here when the owner asks for something. Then, and only then, add the table.
 

@@ -97,6 +97,8 @@ export const T = {
     markReceived: "סמן שקיבלת את המתנה",
     markReceivedFemale: "סמני שקיבלת את המתנה",
     receivedTitle: "אישור קבלת המתנה",
+    /** Request 64: the campus, in large letters, on the confirm page. */
+    receivedCampus: "קמפוס",
     receivedWarn: "סמן רק אחרי שקיבלת את המתנה בידיים. אחרי האישור לא תוכל לבטל את הסימון, ועמדת חלוקה לא תמסור לך את המתנה.",
     receivedWarnFemale: "סמני רק אחרי שקיבלת את המתנה בידיים. אחרי האישור לא תוכלי לבטל את הסימון, ועמדת חלוקה לא תמסור לך את המתנה.",
     confirmReceived: "אשר שקיבלת את המתנה",
@@ -413,6 +415,9 @@ function layout(body: string, wide = false, brand = false): string {
   .photo { max-width: 16rem; display: block; }
   img.register { width: 100%; height: auto; display: block; }
   .big { font-size: 1.5rem; font-weight: 800; margin: 0.3rem 0; }
+  .campus-big { font-size: 2.6rem; font-weight: 800; line-height: 1.15; text-align: center;
+                border: 2px solid var(--green); background: var(--white); padding: 0.75rem; margin-block: 1rem; }
+  .campus-big .hint { font-size: 1rem; font-weight: 600; }
   .button.disabled { background: var(--gray); color: #fff; cursor: default; }
   .button.secondary, .button.secondary:visited { background: transparent; color: var(--green);
                       border: 1.5px solid var(--green); margin-block-start: 0.5rem; }
@@ -733,7 +738,13 @@ const photo = (g: GiftView, cls = "") =>
  */
 export function receivedConfirmPage(s: StudentView): string {
   const f = isFemale(s.gender);
+  // Request 64: the campus in large letters, so it is easy to check at a glance. With a
+  // sub-campus stock, both: עין כרם · קפלן.
+  const campus = s.stock_campus && s.stock_campus !== s.pickup_campus
+    ? `${esc(s.pickup_campus)} · ${esc(s.stock_campus)}`
+    : esc(s.pickup_campus ?? "—");
   return layout(`<h1>${T.student.receivedTitle}</h1>
+<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br>${campus}</p>
 <p class="big">${esc(s.gift_name)}</p>
 <p class="warn">${f ? T.student.receivedWarnFemale : T.student.receivedWarn}</p>
 <form method="post" action="/student/received">

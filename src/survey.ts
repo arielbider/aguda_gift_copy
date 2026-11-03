@@ -18,6 +18,8 @@ type Base = {
   /** Hebrew, feminine form, if the wording changes for a woman. */
   labelFemale?: string;
   required: boolean;
+  /** Links shown under the question, on one line. Each opens in a new tab. */
+  links?: { href: string; label: string; labelFemale?: string }[];
 };
 export type Option = {
   value: string;
@@ -102,9 +104,10 @@ const YES_NO: Option[] = [
  * Version 4: the four optional extra questions are removed, with their checkbox.
  * Version 5: a student not in the dorms names their neighborhood (dorms_text).
  * Version 6: "עם מוגבלות" gets its own text box; the boxes are special_choices_<value>.
+ * Version 7: the student says whether they follow us (follows_us).
  */
 export const SURVEY: Survey = {
-  version: 6,
+  version: 7,
   questions: [
     {
       id: "dorms",
@@ -136,6 +139,18 @@ export const SURVEY: Survey = {
       options: [
         { value: "yes", label: "כן", follow: { kind: "multi", options: SPECIAL_POPULATIONS } },
         { value: "no", label: "לא" },
+      ],
+    },
+    {
+      id: "follows_us",
+      kind: "choice",
+      label: "האם אתה עוקב אחרינו?",
+      labelFemale: "האם את עוקבת אחרינו?",
+      required: true,
+      options: YES_NO,
+      links: [
+        { href: "https://go.aguda.org.il/instagram", label: "עקוב אחרינו באינסטגרם", labelFemale: "עקבי אחרינו באינסטגרם" },
+        { href: "https://go.aguda.org.il/whatsapp", label: "עקוב אחרינו בוואטסאפ", labelFemale: "עקבי אחרינו בוואטסאפ" },
       ],
     },
     {

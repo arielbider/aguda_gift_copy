@@ -188,6 +188,12 @@ describe("the live survey", () => {
     assert.match(her, /האם את משרתת במילואים\?/);
     assert.match(him, /האם אתה גר במעונות\?/, "unknown gender is masculine");
     assert.match(him, /האם אתה משרת במילואים\?/);
+    assert.match(her, /האם את עוקבת אחרינו\?/);
+    assert.match(him, /האם אתה עוקב אחרינו\?/);
+    assert.match(her, /href="https:\/\/go\.aguda\.org\.il\/instagram"[^>]*>עקבי אחרינו באינסטגרם</);
+    assert.match(her, /href="https:\/\/go\.aguda\.org\.il\/whatsapp"[^>]*>עקבי אחרינו בוואטסאפ</);
+    assert.match(him, />עקוב אחרינו באינסטגרם</);
+    assert.match(him, />עקוב אחרינו בוואטסאפ</);
     assert.match(her, /האם את שייכת לאחת מהאוכלוסיות הבאות\?/);
     assert.match(him, /האם אתה שייך לאחת מהאוכלוסיות הבאות\?/);
     for (const html of [her, him]) {
@@ -196,19 +202,19 @@ describe("the live survey", () => {
     }
   });
 
-  test("version 6: no extra questions, no checkbox, and old extra answers are not stored", async () => {
+  test("version 7: no extra questions, no checkbox, and old extra answers are not stored", async () => {
     const { SURVEY: LIVE } = await import("../src/survey.ts");
-    assert.equal(LIVE.version, 6);
-    assert.deepEqual(LIVE.questions.map((q) => q.id), ["dorms", "reserve", "special", "more"]);
-    const sent = { dorms: "no", dorms_text: "רחביה", reserve: "no", special: "no", extra_open: "1", fences: "disaster", father: "no", welfare: "yes", elections: "pirates" };
+    assert.equal(LIVE.version, 7);
+    assert.deepEqual(LIVE.questions.map((q) => q.id), ["dorms", "reserve", "special", "follows_us", "more"]);
+    const sent = { dorms: "no", dorms_text: "רחביה", reserve: "no", special: "no", follows_us: "yes", extra_open: "1", fences: "disaster", father: "no", welfare: "yes", elections: "pirates" };
     const result = validate(LIVE, sent);
     assert.ok(result.ok);
-    assert.deepEqual(Object.keys(result.answers).sort(), ["dorms", "dorms_text", "reserve", "special"]);
+    assert.deepEqual(Object.keys(result.answers).sort(), ["dorms", "dorms_text", "follows_us", "reserve", "special"]);
   });
 });
 
 describe("dorms, special population, and more", () => {
-  const base = { fences: "disaster", father: "no", welfare: "no", reserve: "yes", special: "no", elections: "pirates" };
+  const base = { fences: "disaster", father: "no", welfare: "no", reserve: "yes", special: "no", follows_us: "no", elections: "pirates" };
 
   test("a dorm is required after כן, must be a real dorm, and is dropped after לא", async () => {
     const { SURVEY: LIVE } = await import("../src/survey.ts");

@@ -740,7 +740,12 @@ export function surveyPage(
         })
         .join("");
     }
-    return `<fieldset class="question"><legend>${esc(label)}${mark}</legend>${error}${input}</fieldset>`;
+    const links = q.links?.length
+      ? `<p class="hint">${q.links
+          .map((l) => `<a href="${esc(l.href)}" target="_blank" rel="noopener noreferrer">${esc((female && l.labelFemale) || l.label)}</a>`)
+          .join(" · ")}</p>`
+      : "";
+    return `<fieldset class="question"><legend>${esc(label)}${mark}</legend>${links}${error}${input}</fieldset>`;
   };
 
   const fields = survey.questions.map(field).join("\n");

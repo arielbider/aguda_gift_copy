@@ -572,18 +572,20 @@ const notice = (n?: Notice) => (n ? `<p class="${n.kind}">${n.text}</p>` : "");
 /**
  * Request 64: the campus in large letters, with its logo, so it is easy to check at a
  * glance. With a sub-campus stock, both: עין כרם · קפלן. Request 67: on the page after a
- * selection too.
+ * selection too, where the logo is always the Aguda's (owner's decision).
  */
-const campusBig = (s: StudentView) => {
+const campusBig = (s: StudentView, logoFile = logoOf(s.pickup_campus)) => {
   const campus = s.stock_campus && s.stock_campus !== s.pickup_campus
     ? `${esc(s.pickup_campus)} · ${esc(s.stock_campus)}`
     : esc(s.pickup_campus ?? "—");
-  return `<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${logoOf(s.pickup_campus)}" alt="">${campus}</span></p>`;
+  return `<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${logoFile}" alt="">${campus}</span></p>`;
 };
 
 export function studentPage(s: StudentView, gifts: GiftView[], message?: Notice): string {
   const f = isFemale(s.gender);
-  const head = `<div class="bar">${logo(s.pickup_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
+  // After a selection, the header shows the Aguda logo, not the campus's (owner's decision).
+  const selected = s.gift_id !== null && !s.gift_taken_at;
+  const head = `<div class="bar">${logo(selected ? null : s.pickup_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
 <p>${ltr(s.national_id)} · <strong>${memberLabel(s.member, s.gender)}</strong></p>
 ${notice(message)}`;
 
@@ -598,7 +600,7 @@ ${notice(message)}`;
   if (s.gift_id !== null) {
     const lapsed = s.member !== true ? `<p class="warn">${f ? T.student.lapsedFemale : T.student.lapsed}</p>` : "";
     return layout(`${head}
-<div class="card">${campusBig(s)}<p>${T.student.yourGift}</p><p class="big">${esc(s.gift_name)}</p>
+<div class="card">${campusBig(s, AGUDA_LOGO)}<p>${T.student.yourGift}</p><p class="big">${esc(s.gift_name)}</p>
 <p class="hint">${f ? T.student.chooseHintFemale : T.student.chooseHint}</p>${lapsed}
 <p class="warn">${T.student.reservedToday}</p>
 <p>${f ? T.student.collectHintFemale : T.student.collectHint}</p>

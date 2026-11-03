@@ -293,6 +293,8 @@ describe("the ceo resets every selection not handed over (request 59)", () => {
     assert.ok(!(await app.inject({ url: "/student", cookies })).body.includes(ad), "not on the gift list");
     await selectGift(ids[0], 1);
     assert.ok((await app.inject({ url: "/student", cookies })).body.includes(ad), "after the selection");
+    assert.match((await app.inject({ url: "/student", cookies })).body,
+      /<div class="card"><p class="campus-big">.*<img src="\/img\/mt_scopus.jpg" alt="">הר הצופים<\/span><\/p>/, "the campus too (request 67)");
     assert.equal((await app.inject("/img/party.webp")).statusCode, 200);
   });
 });

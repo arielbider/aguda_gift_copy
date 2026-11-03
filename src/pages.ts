@@ -569,6 +569,18 @@ export const lapsedText = (gender: string | null) =>
 export type Notice = { kind: "ok" | "error" | "warn"; text: string };
 const notice = (n?: Notice) => (n ? `<p class="${n.kind}">${n.text}</p>` : "");
 
+/**
+ * Request 64: the campus in large letters, with its logo, so it is easy to check at a
+ * glance. With a sub-campus stock, both: עין כרם · קפלן. Request 67: on the page after a
+ * selection too.
+ */
+const campusBig = (s: StudentView) => {
+  const campus = s.stock_campus && s.stock_campus !== s.pickup_campus
+    ? `${esc(s.pickup_campus)} · ${esc(s.stock_campus)}`
+    : esc(s.pickup_campus ?? "—");
+  return `<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${logoOf(s.pickup_campus)}" alt="">${campus}</span></p>`;
+};
+
 export function studentPage(s: StudentView, gifts: GiftView[], message?: Notice): string {
   const f = isFemale(s.gender);
   const head = `<div class="bar">${logo(s.pickup_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
@@ -586,7 +598,7 @@ ${notice(message)}`;
   if (s.gift_id !== null) {
     const lapsed = s.member !== true ? `<p class="warn">${f ? T.student.lapsedFemale : T.student.lapsed}</p>` : "";
     return layout(`${head}
-<div class="card"><p>${T.student.yourGift}</p><p class="big">${esc(s.gift_name)}</p>
+<div class="card">${campusBig(s)}<p>${T.student.yourGift}</p><p class="big">${esc(s.gift_name)}</p>
 <p class="hint">${f ? T.student.chooseHintFemale : T.student.chooseHint}</p>${lapsed}
 <p class="warn">${T.student.reservedToday}</p>
 <p>${f ? T.student.collectHintFemale : T.student.collectHint}</p>
@@ -751,13 +763,8 @@ const photo = (g: GiftView, cls = "") =>
  */
 export function receivedConfirmPage(s: StudentView): string {
   const f = isFemale(s.gender);
-  // Request 64: the campus in large letters, so it is easy to check at a glance. With a
-  // sub-campus stock, both: עין כרם · קפלן.
-  const campus = s.stock_campus && s.stock_campus !== s.pickup_campus
-    ? `${esc(s.pickup_campus)} · ${esc(s.stock_campus)}`
-    : esc(s.pickup_campus ?? "—");
   return layout(`<h1>${T.student.receivedTitle}</h1>
-<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${logoOf(s.pickup_campus)}" alt="">${campus}</span></p>
+${campusBig(s)}
 <p class="big">${esc(s.gift_name)}</p>
 <p class="warn">${f ? T.student.receivedWarnFemale : T.student.receivedWarn}</p>
 <form method="post" action="/student/received">

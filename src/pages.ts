@@ -509,7 +509,7 @@ ${error}
 ${dev}`, false, true);
 }
 
-/** Request 66: the party ad, on the login page and after a selection. It links to the tickets. */
+/** Request 66: the party ad, on the login page, after a selection, and after collecting. It links to the tickets. */
 const PARTY_TICKETS = "https://go.aguda.org.il/2511-tickets";
 const partyAd = () =>
   `<a class="party" href="${PARTY_TICKETS}" target="_blank" rel="noopener noreferrer"><img src="/img/party.webp" alt="${T.partyAlt}"></a>`;
@@ -593,7 +593,8 @@ ${notice(message)}`;
   if (s.gift_taken_at) {
     return layout(`${head}
 <div class="card"><p>${T.student.received}</p><p class="big">${esc(s.gift_name)}</p>
-<p class="hint">${when(s.gift_taken_at)}</p></div>`);
+<p class="hint">${when(s.gift_taken_at)}</p></div>
+${partyAd()}`);
   }
 
   // Selected, not collected. A lapsed member keeps the unit, but must renew (request 20).

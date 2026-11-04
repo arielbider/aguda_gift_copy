@@ -194,6 +194,9 @@ describe("the live survey", () => {
     assert.match(her, /href="https:\/\/go\.aguda\.org\.il\/whatsapp"[^>]*>עקבי אחרינו בוואטסאפ</);
     assert.match(him, />עקוב אחרינו באינסטגרם</);
     assert.match(him, />עקוב אחרינו בוואטסאפ</);
+    for (const html of [her, him]) {
+      assert.match(html, /הבאות\? <span class="hint">\(חובה\)<\/span><\/legend><p class="hint">לאחר לחיצה על כן, תיפתח רשימה לבחירה<\/p>/);
+    }
     assert.match(her, /האם את שייכת לאחת מהאוכלוסיות הבאות\?/);
     assert.match(him, /האם אתה שייך לאחת מהאוכלוסיות הבאות\?/);
     for (const html of [her, him]) {

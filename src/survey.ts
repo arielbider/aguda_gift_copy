@@ -18,6 +18,9 @@ type Base = {
   /** Hebrew, feminine form, if the wording changes for a woman. */
   labelFemale?: string;
   required: boolean;
+  /** A line of gray text under the question, and its feminine form if the wording changes. */
+  hint?: string;
+  hintFemale?: string;
   /** Links shown under the question, on one line. Each opens in a new tab. */
   links?: { href: string; label: string; labelFemale?: string }[];
 };
@@ -135,6 +138,7 @@ export const SURVEY: Survey = {
       dropdown: true,
       label: "האם אתה שייך לאחת מהאוכלוסיות הבאות?",
       labelFemale: "האם את שייכת לאחת מהאוכלוסיות הבאות?",
+      hint: "לאחר לחיצה על כן, תיפתח רשימה לבחירה",
       required: true,
       options: [
         { value: "yes", label: "כן", follow: { kind: "multi", options: SPECIAL_POPULATIONS } },

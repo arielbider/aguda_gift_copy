@@ -743,12 +743,13 @@ export function surveyPage(
         })
         .join("");
     }
+    const hint = q.hint ? `<p class="hint">${esc((female && q.hintFemale) || q.hint)}</p>` : "";
     const links = q.links?.length
       ? `<p class="hint">${q.links
           .map((l) => `<a href="${esc(l.href)}" target="_blank" rel="noopener noreferrer">${esc((female && l.labelFemale) || l.label)}</a>`)
           .join(" · ")}</p>`
       : "";
-    return `<fieldset class="question"><legend>${esc(label)}${mark}</legend>${links}${error}${input}</fieldset>`;
+    return `<fieldset class="question"><legend>${esc(label)}${mark}</legend>${hint}${links}${error}${input}</fieldset>`;
   };
 
   const fields = survey.questions.map(field).join("\n");

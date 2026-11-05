@@ -118,7 +118,7 @@ describe("sub-campuses (request 55)", () => {
   const setSub = (id: string, campus: string, sub: string | null) =>
     pool.query("UPDATE students SET campuses = $2, sub_campus = $3 WHERE national_id = $1", [id, [campus], sub]);
 
-  test("a sub-campus student selects from the sub-campus stock; the confirm page keeps the campus logo", async () => {
+  test("a sub-campus student selects from the sub-campus stock, and sees the square logo", async () => {
     await setSub(ids[0], "עין כרם", "קפלן");
     const s = await student(ids[0]);
     assert.equal(s.true_campus, "עין כרם");
@@ -129,7 +129,7 @@ describe("sub-campuses (request 55)", () => {
     const page = (await app.inject({ url: "/student", cookies: await login({ kind: "student", national_id: ids[0] }) })).body;
     assert.doesNotMatch(page, /ein_karem.jpg/, "after a selection, the Aguda logo only");
     const confirm = (await app.inject({ url: "/student/received", cookies: await login({ kind: "student", national_id: ids[0] }) })).body;
-    assert.match(confirm, /<img src="\/img\/ein_karem.jpg" alt="">עין כרם · קפלן<\/span>/, "the sub-campus stock too (request 64)");
+    assert.match(confirm, /<img src="\/img\/aguda_logo_square.svg" alt="">עין כרם · קפלן<\/span>/, "the sub-campus stock too (request 64)");
     assert.equal((await markTaken(ids[0])).ok, true);
     assert.equal((await gift(2, "קפלן")).given_count, 1);
     assert.deepEqual(await counterDrift(), []);
@@ -294,13 +294,15 @@ describe("the ceo resets every selection not handed over (request 59)", () => {
     await selectGift(ids[0], 1);
     assert.ok((await app.inject({ url: "/student", cookies })).body.includes(ad), "after the selection");
     assert.match((await app.inject({ url: "/student", cookies })).body,
-      /<div class="card"><p class="campus-big">.*<img src="\/img\/aguda_logo.svg" alt="">הר הצופים<\/span><\/p>/, "the campus too (request 67), with the Aguda logo");
+      /<div class="card"><p class="campus-big">.*<img src="\/img\/aguda_logo_square.svg" alt="">הר הצופים<\/span><\/p>/, "the campus too (request 67), with the Aguda logo");
     const selected = (await app.inject({ url: "/student", cookies })).body;
-    assert.match(selected, /<div class="bar"><img class="logo" src="\/img\/aguda_logo.svg"/, "the header too");
+    assert.match(selected, /<div class="bar"><img class="logo" src="\/img\/aguda_logo_square.svg"/, "the header too");
     assert.doesNotMatch(selected, /mt_scopus.jpg/, "no campus logo after a selection");
     assert.equal((await app.inject("/img/party.webp")).statusCode, 200);
     await markTaken(ids[0]);
-    assert.ok((await app.inject({ url: "/student", cookies })).body.includes(ad), "after collecting, on the final page");
+    const final = (await app.inject({ url: "/student", cookies })).body;
+    assert.ok(final.includes(ad), "after collecting, on the final page");
+    assert.match(final, /<div class="bar"><img class="logo" src="\/img\/aguda_logo_square.svg"/, "the square logo on the final page");
   });
 });
 

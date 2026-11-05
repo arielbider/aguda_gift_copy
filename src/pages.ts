@@ -5,7 +5,7 @@
  * .claude/skills/hebrew-text.
  */
 import type { GiftView, SelectionView, StaffStats, StudentUpdate, StudentView } from "./queries.ts";
-import { AGUDA_LOGO, CAMPUSES, logoOf } from "./campus.ts";
+import { AGUDA_LOGO, AGUDA_LOGO_SQUARE, CAMPUSES, logoOf } from "./campus.ts";
 import { mayManage, type Role } from "./staff.ts";
 import { followKey, type Option, type Question, type Survey } from "./survey.ts";
 
@@ -527,6 +527,8 @@ const registerImage = (gender: string | null) =>
 /** The campus's logo in a page header; the Aguda logo for no campus or all campuses. */
 const logo = (campus: string | null | undefined) =>
   `<img class="logo" src="/img/${logoOf(campus)}" alt="${esc(campus ?? "אגודת הסטודנטים")}">`;
+/** The square Aguda logo in a student page header, whatever the campus. */
+const squareLogo = `<img class="logo" src="/img/${AGUDA_LOGO_SQUARE}" alt="אגודת הסטודנטים">`;
 
 /** An imperative, not a verbal noun: התנתק, not התנתקות. Gendered for a known woman. */
 const logoutForm = (gender: string | null = null) =>
@@ -572,20 +574,22 @@ const notice = (n?: Notice) => (n ? `<p class="${n.kind}">${n.text}</p>` : "");
 /**
  * Request 64: the campus in large letters, with its logo, so it is easy to check at a
  * glance. With a sub-campus stock, both: עין כרם · קפלן. Request 67: on the page after a
- * selection too, where the logo is always the Aguda's (owner's decision).
+ * selection too. There, and on the received confirm page, the logo is always the square
+ * Aguda logo (owner's decision).
  */
-const campusBig = (s: StudentView, logoFile = logoOf(s.pickup_campus)) => {
+const campusBig = (s: StudentView) => {
   const campus = s.stock_campus && s.stock_campus !== s.pickup_campus
     ? `${esc(s.pickup_campus)} · ${esc(s.stock_campus)}`
     : esc(s.pickup_campus ?? "—");
-  return `<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${logoFile}" alt="">${campus}</span></p>`;
+  return `<p class="campus-big"><span class="hint">${T.student.receivedCampus}</span><br><span class="campus-name"><img src="/img/${AGUDA_LOGO_SQUARE}" alt="">${campus}</span></p>`;
 };
 
 export function studentPage(s: StudentView, gifts: GiftView[], message?: Notice): string {
   const f = isFemale(s.gender);
-  // After a selection, the header shows the Aguda logo, not the campus's (owner's decision).
-  const selected = s.gift_id !== null && !s.gift_taken_at;
-  const head = `<div class="bar">${logo(selected ? null : s.pickup_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
+  // The gift list, and every page after a selection, show the square Aguda logo, not the
+  // campus's (owner's decision). The pages that explain why there is no gift list keep it.
+  const square = s.gift_id !== null || (s.member === true && !!s.true_campus);
+  const head = `<div class="bar">${square ? squareLogo : logo(s.pickup_campus)}<h1>${esc(s.first_name)} ${esc(s.last_name)}</h1>${logoutForm(s.gender)}</div>
 <p>${ltr(s.national_id)} · <strong>${memberLabel(s.member, s.gender)}</strong></p>
 ${notice(message)}`;
 
@@ -601,7 +605,7 @@ ${partyAd()}`);
   if (s.gift_id !== null) {
     const lapsed = s.member !== true ? `<p class="warn">${f ? T.student.lapsedFemale : T.student.lapsed}</p>` : "";
     return layout(`${head}
-<div class="card">${campusBig(s, AGUDA_LOGO)}<p>${T.student.yourGift}</p><p class="big">${esc(s.gift_name)}</p>
+<div class="card">${campusBig(s)}<p>${T.student.yourGift}</p><p class="big">${esc(s.gift_name)}</p>
 <p class="hint">${f ? T.student.chooseHintFemale : T.student.chooseHint}</p>${lapsed}
 <p class="warn">${T.student.reservedToday}</p>
 <p>${f ? T.student.collectHintFemale : T.student.collectHint}</p>
@@ -754,7 +758,7 @@ export function surveyPage(
 
   const fields = survey.questions.map(field).join("\n");
 
-  return layout(`<div class="bar">${logo(s.pickup_campus)}<h1>${T.survey.title}</h1>${logoutForm(s.gender)}</div>
+  return layout(`<div class="bar">${squareLogo}<h1>${T.survey.title}</h1>${logoutForm(s.gender)}</div>
 <p>${female ? T.survey.introFemale : T.survey.intro}</p>
 <form method="post" action="/student/survey">
 ${fields}

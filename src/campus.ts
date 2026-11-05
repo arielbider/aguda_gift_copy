@@ -9,6 +9,8 @@ export const isCampus = (value: unknown): value is Campus => CAMPUSES.includes(v
 
 /** The Aguda logo, and each campus's own logo, in img/ (owner's files, 2026-10-25). */
 export const AGUDA_LOGO = "aguda_logo.svg";
+/** The square Aguda logo, on the survey, the gift list, and every page after a selection (owner's decision). */
+export const AGUDA_LOGO_SQUARE = "aguda_logo_square.svg";
 export const CAMPUS_LOGO: Record<Campus, string> = {
   "גבעת רם": "givat_ram.webp",
   "הר הצופים": "mt_scopus.jpg",
